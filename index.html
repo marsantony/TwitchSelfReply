@@ -163,7 +163,7 @@
 
                                 var name = tags['display-name'] ? `${tags['display-name']}(${tags['username']})` : tags['username'];
                                 var timeStamp = new Date(tags['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
-                                document.getElementById('log').innerHTML += `<div>${timeStamp} ${name}：${replyMessage}</div>`;
+                                document.getElementById('log').innerHTML = `${timeStamp} ${name}：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
                             }
                         });
                 }
