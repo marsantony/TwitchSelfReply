@@ -117,112 +117,119 @@
         var channels = ['marsantonymars'];
         //shuteye_orange
 
-        const selfReplyClass = function (options) {
-            let isEnable = false;
-            if (!options || !options.firstButtonName ||
-                !options.startButtonName || !options.stopButtonName ||
-                !options.getMessage || typeof options.getMessage !== 'function') {
-                return;
+        class selfReplyClass {
+            #isEnable = false;
+            constructor(options) {
+                if (!options || !options.firstButtonName ||
+                    !options.startButtonName || !options.stopButtonName ||
+                    !options.getMessage || typeof options.getMessage !== 'function') {
+                    return;
+                }
+
+                this.firstButtonName = options.firstButtonName;
+                this.startButtonName = options.startButtonName;
+                this.stopButtonName = options.stopButtonName;
+                this.getMessage = options.getMessage;
             }
-            const firstButtonName = options.firstButtonName;
-            const startButtonName = options.startButtonName;
-            const stopButtonName = options.stopButtonName;
-            document.getElementById(firstButtonName).addEventListener('click', (e) => {
 
-                const client = new tmi.Client({
-                    options: {
-                        debug: false,
-                        skipMembership: true, // 不接收 JOIN/PART 訊息
-                        skipUpdatingEmotesets: true,
-                    },
-                    connection: {
-                        reconnect: true,
-                        secure: true
-                    },
-                    identity: {
-                        username: document.getElementById('username').value,            // [TODO]: input your Twitch username
-                        password: document.getElementById('password').value        // [TODO]: input the genereated oath password
-                        // 1. go to https://twitchapps.com/tmi/
-                        // 2. click "Connect"
-                        // 3. You will get a password beginning with "oath..."
-                        // 4. Copy the whole password and paste inside the 'genereated_oath_password'
-                    },
-                    channels: channels // [TODO]: input the channel name you want to listen to
+            init() {
+                document.getElementById(this.firstButtonName).addEventListener('click', (e) => {
+
+                    const client = new tmi.Client({
+                        options: {
+                            debug: false,
+                            skipMembership: true, // 不接收 JOIN/PART 訊息
+                            skipUpdatingEmotesets: true,
+                        },
+                        connection: {
+                            reconnect: true,
+                            secure: true
+                        },
+                        identity: {
+                            username: document.getElementById('username').value,            // [TODO]: input your Twitch username
+                            password: document.getElementById('password').value        // [TODO]: input the genereated oath password
+                            // 1. go to https://twitchapps.com/tmi/
+                            // 2. click "Connect"
+                            // 3. You will get a password beginning with "oath..."
+                            // 4. Copy the whole password and paste inside the 'genereated_oath_password'
+                        },
+                        channels: channels // [TODO]: input the channel name you want to listen to
+                    });
+
+                    //成功連接
+                    client.connect().catch(console.error);
+
+                    //將預設值寫入localStorage
+                    localStorage.setItem(LOCALSTORAGE_USERNAME, document.getElementById('username').value);
+                    localStorage.setItem(LOCALSTORAGE_PASSWORD, document.getElementById('password').value);
+                    localStorage.setItem(LOCALSTORAGE_COMMANDREPLYTEMPLATE, document.getElementById('commandReplyTemplate').value);
+                    //localStorage.setItem(LOCALSTORAGE_AZUREFUNCTIONKEY, document.getElementById('azureFunctionKey').value);
+
+
+                    client.on('message', (channel, tags, message, self) => {
+                        //不知為啥streamelements的username小寫= =
+                        if (tags.username.toLowerCase() === 'streamelements' && message.includes('遊戲名稱(Game Title)')) {
+                            replyGameName = /『(.+)』/gm.exec(message)[1].trim();
+                            document.getElementById('currentCommandReplyGameName').innerHTML = replyGameName;
+                        }
+
+                        if (!this.#isEnable) return;
+
+                        if (self || !message.startsWith('!')) return;
+
+                        const args = message.slice(1).split(' ');
+                        const command = args.shift().toLowerCase();
+
+                        if (command === '遊戲') {
+                            //fetch(`https://getorangesteamstatus.azurewebsites.net/api/Get?code=${document.getElementById('azureFunctionKey').value}`)
+                            fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
+                                .then((response) => {
+                                    console.log(response);
+                                    return response.json();
+                                }).then((json) => {
+                                    console.log(json);
+                                    document.getElementById('currentSteamGameName').innerHTML = json['GameName'];
+                                    //清空
+                                    currentGameName = '';
+                                    //自訂遊戲名稱優先權較高
+                                    currentGameName = document.getElementById('gameName').value || json['GameName'];
+
+                                    if (currentGameName && currentGameName !== replyGameName) {
+                                        const replyMessage = this.getMessage(currentGameName);
+                                        client.say(channel, replyMessage);
+                                        //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
+
+                                        var name = tags['display-name'] ? `${tags['display-name']}(${tags['username']})` : tags['username'];
+                                        var timeStamp = new Date(tags['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
+                                        document.getElementById('log').innerHTML = `${timeStamp} ${name} !遊戲，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
+                                    }
+                                });
+                        }
+                    });
+
+                    document.getElementById(this.firstButtonName).style.display = 'none';
+                    document.getElementById(this.startButtonName).style.display = 'none';
+                    document.getElementById(this.stopButtonName).style.display = '';
+
+                    document.getElementById(this.startButtonName).click();
                 });
 
-                //成功連接
-                client.connect().catch(console.error);
+                document.getElementById(this.startButtonName).addEventListener('click', (e) => {
+                    isEnable = true;
 
-                //將預設值寫入localStorage
-                localStorage.setItem(LOCALSTORAGE_USERNAME, document.getElementById('username').value);
-                localStorage.setItem(LOCALSTORAGE_PASSWORD, document.getElementById('password').value);
-                localStorage.setItem(LOCALSTORAGE_COMMANDREPLYTEMPLATE, document.getElementById('commandReplyTemplate').value);
-                //localStorage.setItem(LOCALSTORAGE_AZUREFUNCTIONKEY, document.getElementById('azureFunctionKey').value);
-
-
-                client.on('message', (channel, tags, message, self) => {
-                    //不知為啥streamelements的username小寫= =
-                    if (tags.username.toLowerCase() === 'streamelements' && message.includes('遊戲名稱(Game Title)')) {
-                        replyGameName = /『(.+)』/gm.exec(message)[1].trim();
-                        document.getElementById('currentCommandReplyGameName').innerHTML = replyGameName;
-                    }
-
-                    if (!isEnable) return;
-
-                    if (self || !message.startsWith('!')) return;
-
-                    const args = message.slice(1).split(' ');
-                    const command = args.shift().toLowerCase();
-
-                    if (command === '遊戲') {
-                        //fetch(`https://getorangesteamstatus.azurewebsites.net/api/Get?code=${document.getElementById('azureFunctionKey').value}`)
-                        fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
-                            .then((response) => {
-                                console.log(response);
-                                return response.json();
-                            }).then((json) => {
-                                console.log(json);
-                                document.getElementById('currentSteamGameName').innerHTML = json['GameName'];
-                                //清空
-                                currentGameName = '';
-                                //自訂遊戲名稱優先權較高
-                                currentGameName = document.getElementById('gameName').value || json['GameName'];
-
-                                if (currentGameName && currentGameName !== replyGameName) {
-                                    const replyMessage = options.getMessage(currentGameName);
-                                    client.say(channel, replyMessage);
-                                    //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
-
-                                    var name = tags['display-name'] ? `${tags['display-name']}(${tags['username']})` : tags['username'];
-                                    var timeStamp = new Date(tags['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
-                                    document.getElementById('log').innerHTML = `${timeStamp} ${name} !遊戲，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
-                                }
-                            });
-                    }
+                    document.getElementById(this.firstButtonName).style.display = 'none';
+                    document.getElementById(this.startButtonName).style.display = 'none';
+                    document.getElementById(this.stopButtonName).style.display = '';
                 });
 
-                document.getElementById(firstButtonName).style.display = 'none';
-                document.getElementById(startButtonName).style.display = 'none';
-                document.getElementById(stopButtonName).style.display = '';
+                document.getElementById(this.stopButtonName).addEventListener('click', (e) => {
+                    isEnable = false;
 
-                document.getElementById(startButtonName).click();
-            });
-
-            document.getElementById(startButtonName).addEventListener('click', (e) => {
-                isEnable = true;
-
-                document.getElementById(firstButtonName).style.display = 'none';
-                document.getElementById(startButtonName).style.display = 'none';
-                document.getElementById(stopButtonName).style.display = '';
-            });
-
-            document.getElementById(stopButtonName).addEventListener('click', (e) => {
-                isEnable = false;
-
-                document.getElementById(firstButtonName).style.display = 'none';
-                document.getElementById(startButtonName).style.display = '';
-                document.getElementById(stopButtonName).style.display = 'none';
-            });
+                    document.getElementById(this.firstButtonName).style.display = 'none';
+                    document.getElementById(this.startButtonName).style.display = '';
+                    document.getElementById(this.stopButtonName).style.display = 'none';
+                });
+            }
         };
 
         var isAutoReplyMODEnable = false;
@@ -331,7 +338,7 @@
             getMessage: function (currentGameName) {
                 return `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」`;
             }
-        });
+        }).init();
         
     </script>
 </body>
