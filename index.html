@@ -188,7 +188,7 @@
                                     //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
 
                                     var name = '點擊立即回覆並更新(MOD)';
-                                    var timeStamp = new Date(tags['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
+                                    var timeStamp = new Date().toLocaleString('sv-SE');
                                     document.getElementById('log').innerHTML = `${timeStamp} ${name} ，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
                                 }
                             });
