@@ -187,9 +187,9 @@
                                     this.#client.say(this.#channels[0], replyMessage);
                                     //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
 
-                                    var name = tags['display-name'] ? `${tags['display-name']}(${tags['username']})` : tags['username'];
+                                    var name = '點擊立即回覆並更新(MOD)';
                                     var timeStamp = new Date(tags['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
-                                    document.getElementById('log').innerHTML = `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
+                                    document.getElementById('log').innerHTML = `${timeStamp} ${name} ，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
                                 }
                             });
                     });
