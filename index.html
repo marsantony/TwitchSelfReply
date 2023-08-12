@@ -116,6 +116,7 @@
             #isEnable = false;
             #currentGameName = '';
             #replyGameName = '';
+            //這邊只允許一個channel連接
             #channels = ['marsantonymars']; //shuteye_orange
             #client;
             constructor(options) {
@@ -183,7 +184,7 @@
 
                                 if (this.#currentGameName && this.#currentGameName !== this.#replyGameName) {
                                     const replyMessage = this.getMessage(this.#currentGameName);
-                                    this.#client.say(channel, replyMessage);
+                                    this.#client.say(this.#channels[0], replyMessage);
                                     //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
 
                                     var name = tags['display-name'] ? `${tags['display-name']}(${tags['username']})` : tags['username'];
@@ -247,11 +248,7 @@
                         }
                     });
 
-                    document.getElementById(this.firstButtonName).style.display = 'none';
-                    document.getElementById(this.startButtonName).style.display = 'none';
-                    document.getElementById(this.stopButtonName).style.display = '';
-
-                    
+                    document.getElementById(this.startButtonName).click();
                 });
 
                 document.getElementById(this.startButtonName).addEventListener('click', (e) => {
