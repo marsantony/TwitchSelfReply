@@ -69,13 +69,13 @@
 
         <br />
         <div class="form-group" style="text-align:right;">
-            <input type="button" id="autoReplyMOD" class="btn btn-success" value="開始自動回覆(MOD)" />
-            <input type="button" id="startReplyMOD" class="btn btn-success" value="開始回覆(MOD)" style="display:none;" />
+            <input type="button" id="autoReplyMOD" class="btn btn-success" value="開始自動回覆並更新(MOD)" />
+            <input type="button" id="startReplyMOD" class="btn btn-success" value="開始自動回覆並更新(MOD)" style="display:none;" />
             <input type="button" id="stopReplyMOD" class="btn btn-danger" value="停止回覆(MOD)" style="display:none;" />
 
             <input type="button" id="autoReply" class="btn btn-primary" value="開始自動回覆" />
 
-            <input type="button" id="startReply" class="btn btn-primary" value="開始回覆" style="display:none;" />
+            <input type="button" id="startReply" class="btn btn-primary" value="開始自動回覆" style="display:none;" />
             <input type="button" id="stopReply" class="btn btn-danger" value="停止回覆" style="display:none;" />
 
         </div>
@@ -87,7 +87,7 @@
         </div>
 
         <div class="form-group">
-            <label for="currentCommandReplyGameName">目前遊戲指令的遊戲名稱：</label>
+            <label for="currentCommandReplyGameName">上一個遊戲指令的遊戲名稱：</label>
             <span id="currentCommandReplyGameName"></span>
         </div>
         <div class="form-group">
@@ -337,6 +337,16 @@
             stopButtonName: 'stopReply',
             getMessage: function (currentGameName) {
                 return `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」`;
+            }
+        }).init();
+
+        new selfReplyClass({
+            firstButtonName: 'autoReplyMOD',
+            startButtonName: 'startReplyMOD',
+            stopButtonName: 'stopReplyMOD',
+            getMessage: function (currentGameName) {
+                const fullMessage = document.getElementById('commandReplyTemplate').value.replace(/『(.*)』/gm, `『${currentGameName}』`);
+                return `!command edit !遊戲 ${fullMessage}`;
             }
         }).init();
         
