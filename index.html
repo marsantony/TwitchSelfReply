@@ -215,7 +215,7 @@
                 });
 
                 document.getElementById(this.startButtonName).addEventListener('click', (e) => {
-                    isEnable = true;
+                    this.#isEnable = true;
 
                     document.getElementById(this.firstButtonName).style.display = 'none';
                     document.getElementById(this.startButtonName).style.display = 'none';
@@ -223,7 +223,7 @@
                 });
 
                 document.getElementById(this.stopButtonName).addEventListener('click', (e) => {
-                    isEnable = false;
+                    this.#isEnable = false;
 
                     document.getElementById(this.firstButtonName).style.display = 'none';
                     document.getElementById(this.startButtonName).style.display = '';
