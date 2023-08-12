@@ -69,6 +69,7 @@
 
         <br />
         <div class="form-group" style="text-align:right;">
+            <input type="button" id="immediatelyReplyMOD" class="btn btn-success" value="立即回覆並更新(MOD)" />
             <input type="button" id="autoReplyMOD" class="btn btn-success" value="開始自動回覆並更新(MOD)" />
             <input type="button" id="startReplyMOD" class="btn btn-success" value="開始自動回覆並更新(MOD)" style="display:none;" />
             <input type="button" id="stopReplyMOD" class="btn btn-danger" value="停止回覆(MOD)" style="display:none;" />
@@ -111,14 +112,11 @@
         document.getElementById('commandReplyTemplate').value = localStorage.getItem(LOCALSTORAGE_COMMANDREPLYTEMPLATE) || '';
         //document.getElementById('azureFunctionKey').value = localStorage.getItem(LOCALSTORAGE_AZUREFUNCTIONKEY) || '';
 
-        var currentGameName = '';
-        var replyGameName = '';
-
-        var channels = ['marsantonymars'];
-        //shuteye_orange
-
         class selfReplyClass {
             #isEnable = false;
+            #currentGameName = '';
+            #replyGameName = '';
+            #channels = ['marsantonymars']; //shuteye_orange
             constructor(options) {
                 if (!options || !options.firstButtonName ||
                     !options.startButtonName || !options.stopButtonName ||
@@ -130,9 +128,25 @@
                 this.startButtonName = options.startButtonName;
                 this.stopButtonName = options.stopButtonName;
                 this.getMessage = options.getMessage;
+
+                this.immediatelyButtonName = options.immediatelyButtonName;
+                this.commandName = options.commandName || '遊戲';
             }
 
             init() {
+
+                if (this.immediatelyButtonName) {
+                    document.getElementById(this.immediatelyButtonName).addEventListener('click', (e) => {
+                        this.#isEnable = true;
+
+                        document.getElementById(this.firstButtonName).style.display = 'none';
+                        document.getElementById(this.startButtonName).style.display = 'none';
+                        document.getElementById(this.stopButtonName).style.display = '';
+
+                        document.getElementById(this.startButtonName).click();
+                    });
+                }
+
                 document.getElementById(this.firstButtonName).addEventListener('click', (e) => {
 
                     const client = new tmi.Client({
@@ -153,7 +167,7 @@
                             // 3. You will get a password beginning with "oath..."
                             // 4. Copy the whole password and paste inside the 'genereated_oath_password'
                         },
-                        channels: channels // [TODO]: input the channel name you want to listen to
+                        channels: this.#channels // [TODO]: input the channel name you want to listen to
                     });
 
                     //成功連接
@@ -169,8 +183,8 @@
                     client.on('message', (channel, tags, message, self) => {
                         //不知為啥streamelements的username小寫= =
                         if (tags.username.toLowerCase() === 'streamelements' && message.includes('遊戲名稱(Game Title)')) {
-                            replyGameName = /『(.+)』/gm.exec(message)[1].trim();
-                            document.getElementById('currentCommandReplyGameName').innerHTML = replyGameName;
+                            this.#replyGameName = /『(.+)』/gm.exec(message)[1].trim();
+                            document.getElementById('currentCommandReplyGameName').innerHTML = this.#replyGameName;
                         }
 
                         if (!this.#isEnable) return;
@@ -180,7 +194,7 @@
                         const args = message.slice(1).split(' ');
                         const command = args.shift().toLowerCase();
 
-                        if (command === '遊戲') {
+                        if (command === this.commandName) {
                             //fetch(`https://getorangesteamstatus.azurewebsites.net/api/Get?code=${document.getElementById('azureFunctionKey').value}`)
                             fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
                                 .then((response) => {
@@ -190,18 +204,18 @@
                                     console.log(json);
                                     document.getElementById('currentSteamGameName').innerHTML = json['GameName'];
                                     //清空
-                                    currentGameName = '';
+                                    this.#currentGameName = '';
                                     //自訂遊戲名稱優先權較高
-                                    currentGameName = document.getElementById('gameName').value || json['GameName'];
+                                    this.#currentGameName = document.getElementById('gameName').value || json['GameName'];
 
-                                    if (currentGameName && currentGameName !== replyGameName) {
-                                        const replyMessage = this.getMessage(currentGameName);
+                                    if (this.#currentGameName && this.#currentGameName !== this.#replyGameName) {
+                                        const replyMessage = this.getMessage(this.#currentGameName);
                                         client.say(channel, replyMessage);
                                         //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
 
                                         var name = tags['display-name'] ? `${tags['display-name']}(${tags['username']})` : tags['username'];
                                         var timeStamp = new Date(tags['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
-                                        document.getElementById('log').innerHTML = `${timeStamp} ${name} !遊戲，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
+                                        document.getElementById('log').innerHTML = `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
                                     }
                                 });
                         }
@@ -211,7 +225,7 @@
                     document.getElementById(this.startButtonName).style.display = 'none';
                     document.getElementById(this.stopButtonName).style.display = '';
 
-                    document.getElementById(this.startButtonName).click();
+                    
                 });
 
                 document.getElementById(this.startButtonName).addEventListener('click', (e) => {
@@ -249,7 +263,10 @@
             getMessage: function (currentGameName) {
                 const fullMessage = document.getElementById('commandReplyTemplate').value.replace(/『(.*)』/gm, `『${currentGameName}』`);
                 return `!command edit !遊戲 ${fullMessage}`;
-            }
+            },
+
+            immediatelyButtonName: 'immediatelyReplyMOD',
+            commandName:'更新遊戲',
         }).init();
         
     </script>
