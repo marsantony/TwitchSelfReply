@@ -159,6 +159,14 @@
 
                 //成功連接
                 this.#client.connect().catch(console.error);
+
+                this.#client.on('message', (channel, tags, message, self) => {
+                    //不知為啥streamelements的username小寫= =
+                    if (tags.username.toLowerCase() === 'streamelements' && message.includes('遊戲名稱(Game Title)')) {
+                        this.#replyGameName = /『(.+)』/gm.exec(message)[1].trim();
+                        document.getElementById('currentCommandReplyGameName').innerHTML = this.#replyGameName;
+                    }
+                });
             }
 
             init() {
@@ -169,6 +177,7 @@
                         if (!this.#client)
                             this.#connect();
 
+                       
                         
                         fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
                             .then((response) => {
@@ -208,12 +217,7 @@
 
 
                     this.#client.on('message', (channel, tags, message, self) => {
-                        //不知為啥streamelements的username小寫= =
-                        if (tags.username.toLowerCase() === 'streamelements' && message.includes('遊戲名稱(Game Title)')) {
-                            this.#replyGameName = /『(.+)』/gm.exec(message)[1].trim();
-                            document.getElementById('currentCommandReplyGameName').innerHTML = this.#replyGameName;
-                        }
-
+                        
                         if (!this.#isEnable) return;
 
                         if (self || !message.startsWith('!')) return;
