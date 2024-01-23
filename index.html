@@ -192,6 +192,7 @@
             #currentGameName = '';
             #replyGameName = '';
             #currentNightBotCommandTag = {};
+            #currentNightBotCommandOtherMessage = '';
             //這邊只允許一個channel連接
             #channels = ['shuteye_orange']; //shuteye_orange marsantonymars
             #client;
@@ -302,8 +303,10 @@
 
                         const args = message.slice(1).split(' ');
                         const command = args.shift().toLowerCase();
+                        const otherMessage = args.join(' ');
                         if (command === this.commandNameInNightBot) {
                             this.#currentNightBotCommandTag = tags;
+                            this.#currentNightBotCommandOtherMessage = otherMessage;
                         }
                         else if (command === this.commandName) {
                             //fetch(`https://getorangesteamstatus.azurewebsites.net/api/Get?code=${document.getElementById('azureFunctionKey').value}`)
@@ -321,12 +324,17 @@
 
                                     //改成完整的遊戲回覆有沒有包含目前的遊戲名稱
                                     if (this.#currentGameName && !this.#replyGameName.includes(this.#currentGameName)) {
-                                        const replyMessage = this.getMessage(this.#currentGameName);
                                         let currentTag = tags;
+                                        let currentOtherMessage = otherMessage;
+                                        //抓!game的使用者與額外留言
                                         if (tags.username.toLowerCase() === 'nightbot' && this.#currentNightBotCommandTag['id']) {
                                             currentTag = this.#currentNightBotCommandTag;
+                                            currentOtherMessage = this.#currentNightBotCommandOtherMessage;
                                             this.#currentNightBotCommandTag = {};   //清空
+                                            this.#currentNightBotCommandOtherMessage = '';
                                         }
+                                        const replyMessage = this.getMessage(this.#currentGameName, currentOtherMessage);
+
                                         //this.#client.say(channel, replyMessage);
                                         this.#client.reply(channel, replyMessage, currentTag); //v1.9.0-pre.1
 
@@ -364,8 +372,9 @@
             firstButtonName: 'autoReply',
             startButtonName: 'startReply',
             stopButtonName: 'stopReply',
-            getMessage: function (currentGameName) {
-                return `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」`;
+            getMessage: function (currentGameName, otherMessage) {
+                var other = otherMessage ? ` 額外留言：${otherMessage}` : '';
+                return `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」${other}`;
             }
         }).init();
 
@@ -373,7 +382,8 @@
             firstButtonName: 'autoReplyMOD',
             startButtonName: 'startReplyMOD',
             stopButtonName: 'stopReplyMOD',
-            getMessage: function (currentGameName) {
+            getMessage: function (currentGameName, otherMessage) {
+                //command 其他留言怎麼用沒想好
                 //塞入遊戲名稱改用{game}而不是依照正規表達式，避免一直要修改
                 const fullMessage = document.getElementById('commandReplyTemplate').value.replace(/{game}/, `${currentGameName}`);
                 return `!command edit !遊戲 ${fullMessage}`;
