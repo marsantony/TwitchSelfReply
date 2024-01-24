@@ -194,8 +194,25 @@
             #currentNightBotCommandTag = {};
             #currentNightBotCommandOtherMessage = '';
             //這邊只允許一個channel連接
-            #channels = ['shuteye_orange']; //shuteye_orange marsantonymars
+            #channels = ['marsantonymars']; //shuteye_orange marsantonymars
             #client;
+
+            #logTalkingAboutMe(tags, message) {
+                if (!this.#client) return;
+                const myUserId = this.#client.globaluserstate['user-id'];
+                const myNames = [this.#client.username, this.#client.globaluserstate['display-name']];
+                
+                //抓有TAG到自己或reply自己的LOG
+                const args = message.split(' ');
+                if (tags['reply-parent-user-id'] == myUserId || tags['reply-thread-parent-user-id'] == myUserId ||    //回覆的父或源頭是我的userid
+                    myNames.find((name) => args.indexOf(`@${name}`) > -1)) { //有@TAG到我
+                    var name = tags['display-name'] ? `${tags['display-name']}(${tags['username']})` : tags['username'];
+                    var timeStamp = new Date(tags['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
+                    document.getElementById('log').innerHTML = `${timeStamp} ${name}：${message}\r\n${document.getElementById('log').innerHTML}`;
+                }
+            }
+
+
             constructor(options) {
                 if (!options || !options.firstButtonName ||
                     !options.startButtonName || !options.stopButtonName ||
@@ -294,8 +311,12 @@
                     localStorage.setItem(LOCALSTORAGE_COMMANDREPLYTEMPLATE, document.getElementById('commandReplyTemplate').value);
                     //localStorage.setItem(LOCALSTORAGE_AZUREFUNCTIONKEY, document.getElementById('azureFunctionKey').value);
 
+                    
 
                     this.#client.on('message', (channel, tags, message, self) => {
+
+                        //有談到我的紀錄下來
+                        this.#logTalkingAboutMe(tags, message);
 
                         if (!this.#isEnable) return;
 
