@@ -10,7 +10,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-
     <title>Twitch自動回覆</title>
     <link rel="icon" href="start.gif" type="image/gif" />
 </head>
@@ -110,6 +109,13 @@
                 </div>
             </div>
             <br />
+
+            <input type="button" id="immediatelymdsReply" class="btn btn-success" value="立即mds回覆並更新">
+
+            <input type="button" id="automdsReply" class="btn btn-success" value="開始mds自動回覆並更新" />
+            <input type="button" id="startmdsReply" class="btn btn-success" value="開始mds自動回覆並更新" style="display:none;" />
+            <input type="button" id="stopmdsReply" class="btn btn-danger" value="停止mds回覆" style="display:none;" />
+
             <input type="button" id="immediatelyReplyMOD" class="btn btn-success" value="立即回覆並更新(MOD)">
 
             <input type="button" id="autoReplyMOD" class="btn btn-success" value="開始自動回覆並更新(MOD)" />
@@ -212,18 +218,24 @@
                 }
             }
 
+           
 
             constructor(options) {
-                if (!options || !options.firstButtonName ||
-                    !options.startButtonName || !options.stopButtonName ||
+                let replyTypes = ['game', 'mds'];
+                if (!options || !options.replyType ||
+                    !options.firstButtonName || !options.startButtonName || !options.stopButtonName ||
                     !options.getMessage || typeof options.getMessage !== 'function') {
                     return;
                 }
+
+                if (!replyTypes.includes(options.replyType))
+                    return;
 
                 this.firstButtonName = options.firstButtonName;
                 this.startButtonName = options.startButtonName;
                 this.stopButtonName = options.stopButtonName;
                 this.getMessage = options.getMessage;
+                this.replyType = options.replyType;
 
                 this.immediatelyButtonName = options.immediatelyButtonName;
                 this.commandName = options.commandName || '遊戲';
@@ -264,6 +276,119 @@
                 });
             }
 
+            #immediatelyGameFetch() {
+                fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
+                    .then((response) => {
+                        console.log(response);
+                        return response.json();
+                    }).then((json) => {
+                        console.log(json);
+                        document.getElementById('currentSteamGameName').innerHTML = json['GameName'];
+                        //清空
+                        this.#currentGameName = '';
+                        //自訂遊戲名稱優先權較高
+                        this.#currentGameName = document.getElementById('gameName').value || json['GameName'];
+
+                        //改成完整的遊戲回覆有沒有包含目前的遊戲名稱
+                        if (this.#currentGameName && !this.#replyGameName.includes(this.#currentGameName)) {
+                            const replyMessage = this.getMessage(json, this.#currentGameName);
+                            this.#client.say(`${this.#channels[0]}`, replyMessage);
+                            //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
+
+                            var name = '點擊立即回覆並更新(MOD)';
+                            var timeStamp = new Date().toLocaleString('sv-SE');
+                            document.getElementById('log').innerHTML = `${timeStamp} ${name} ，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
+                        }
+                    });
+            }
+
+            #immediatelymdsFetch() {
+                fetch(`https://mds2024.com/api/meal-sales`)
+                    .then((response) => {
+                        console.log(response);
+                        return response.json();
+                    }).then((json) => {
+                        console.log(json);
+                        
+
+                        //改成完整的遊戲回覆有沒有包含目前的遊戲名稱
+                      
+                        const replyMessage = this.getMessage(json, '');
+                        this.#client.say(`${this.#channels[0]}`, replyMessage);
+                        //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
+
+                        var name = '立即mds回覆並更新';
+                        var timeStamp = new Date().toLocaleString('sv-SE');
+                        document.getElementById('log').innerHTML = `${timeStamp} ${name} ，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
+                        
+                    });
+            }
+
+
+            #gameFetch(channel, tags, message, self, otherMessage) {
+                //fetch(`https://getorangesteamstatus.azurewebsites.net/api/Get?code=${document.getElementById('azureFunctionKey').value}`)
+                fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
+                    .then((response) => {
+                        console.log(response);
+                        return response.json();
+                    }).then((json) => {
+                        console.log(json);
+                        document.getElementById('currentSteamGameName').innerHTML = json['GameName'];
+                        //清空
+                        this.#currentGameName = '';
+                        //自訂遊戲名稱優先權較高
+                        this.#currentGameName = document.getElementById('gameName').value || json['GameName'];
+
+                        //改成完整的遊戲回覆有沒有包含目前的遊戲名稱
+                        if (this.#currentGameName && !this.#replyGameName.includes(this.#currentGameName)) {
+                            let currentTag = tags;
+                            let currentOtherMessage = otherMessage;
+                            //抓!game的使用者與額外留言
+                            if (tags.username.toLowerCase() === 'nightbot' && this.#currentNightBotCommandTag['id']) {
+                                currentTag = this.#currentNightBotCommandTag;
+                                currentOtherMessage = this.#currentNightBotCommandOtherMessage;
+                                this.#currentNightBotCommandTag = {};   //清空
+                                this.#currentNightBotCommandOtherMessage = '';
+                            }
+                            //突然想到留言是我留，別人打禁字我也跟著禁XD
+                            const replyMessage = this.getMessage(json, this.#currentGameName);
+
+                            //this.#client.say(channel, replyMessage);
+                            this.#client.reply(channel, replyMessage, currentTag); //v1.9.0-pre.1
+
+                            var name = currentTag['display-name'] ? `${currentTag['display-name']}(${currentTag['username']})` : currentTag['username'];
+                            var timeStamp = new Date(currentTag['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
+                            document.getElementById('log').innerHTML = `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
+                        }
+                    });
+            }
+
+
+            #mdsFetch(channel, tags, message, self, otherMessage) {
+                
+                fetch(`https://mds2024.com/api/meal-sales`)
+                    .then((response) => {
+                        console.log(response);
+                        return response.json();
+                    }).then((json) => {
+                        console.log(json);
+                     
+                        let currentTag = tags;
+                        let currentOtherMessage = otherMessage;
+                        
+                        //突然想到留言是我留，別人打禁字我也跟著禁XD
+                        const replyMessage = this.getMessage(json, '');
+
+                        //this.#client.say(channel, replyMessage);
+                        this.#client.reply(channel, replyMessage, currentTag); //v1.9.0-pre.1
+
+                        var name = currentTag['display-name'] ? `${currentTag['display-name']}(${currentTag['username']})` : currentTag['username'];
+                        var timeStamp = new Date(currentTag['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
+                        document.getElementById('log').innerHTML = `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
+                       
+                    });
+            }
+
             init() {
 
                 if (this.immediatelyButtonName) {
@@ -273,30 +398,16 @@
                             this.#connect();
 
 
+                        switch (this.replyType) {
+                            case 'mds':
+                                this.#immediatelymdsFetch();
+                                break;
+                            case 'game':
+                                this.#immediatelyGameFetch();
+                            default:
+                                break;
+                        }
 
-                        fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
-                            .then((response) => {
-                                console.log(response);
-                                return response.json();
-                            }).then((json) => {
-                                console.log(json);
-                                document.getElementById('currentSteamGameName').innerHTML = json['GameName'];
-                                //清空
-                                this.#currentGameName = '';
-                                //自訂遊戲名稱優先權較高
-                                this.#currentGameName = document.getElementById('gameName').value || json['GameName'];
-
-                                //改成完整的遊戲回覆有沒有包含目前的遊戲名稱
-                                if (this.#currentGameName && !this.#replyGameName.includes(this.#currentGameName)) {
-                                    const replyMessage = this.getMessage(this.#currentGameName);
-                                    this.#client.say(`${this.#channels[0]}`, replyMessage);
-                                    //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
-
-                                    var name = '點擊立即回覆並更新(MOD)';
-                                    var timeStamp = new Date().toLocaleString('sv-SE');
-                                    document.getElementById('log').innerHTML = `${timeStamp} ${name} ，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
-                                }
-                            });
                     });
                 }
 
@@ -330,41 +441,17 @@
                             this.#currentNightBotCommandOtherMessage = otherMessage;
                         }
                         else if (command === this.commandName) {
-                            //fetch(`https://getorangesteamstatus.azurewebsites.net/api/Get?code=${document.getElementById('azureFunctionKey').value}`)
-                            fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
-                                .then((response) => {
-                                    console.log(response);
-                                    return response.json();
-                                }).then((json) => {
-                                    console.log(json);
-                                    document.getElementById('currentSteamGameName').innerHTML = json['GameName'];
-                                    //清空
-                                    this.#currentGameName = '';
-                                    //自訂遊戲名稱優先權較高
-                                    this.#currentGameName = document.getElementById('gameName').value || json['GameName'];
 
-                                    //改成完整的遊戲回覆有沒有包含目前的遊戲名稱
-                                    if (this.#currentGameName && !this.#replyGameName.includes(this.#currentGameName)) {
-                                        let currentTag = tags;
-                                        let currentOtherMessage = otherMessage;
-                                        //抓!game的使用者與額外留言
-                                        if (tags.username.toLowerCase() === 'nightbot' && this.#currentNightBotCommandTag['id']) {
-                                            currentTag = this.#currentNightBotCommandTag;
-                                            currentOtherMessage = this.#currentNightBotCommandOtherMessage;
-                                            this.#currentNightBotCommandTag = {};   //清空
-                                            this.#currentNightBotCommandOtherMessage = '';
-                                        }
-                                        //突然想到留言是我留，別人打禁字我也跟著禁XD
-                                        const replyMessage = this.getMessage(this.#currentGameName);
-
-                                        //this.#client.say(channel, replyMessage);
-                                        this.#client.reply(channel, replyMessage, currentTag); //v1.9.0-pre.1
-
-                                        var name = currentTag['display-name'] ? `${currentTag['display-name']}(${currentTag['username']})` : currentTag['username'];
-                                        var timeStamp = new Date(currentTag['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
-                                        document.getElementById('log').innerHTML = `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
-                                    }
-                                });
+                            switch (this.replyType) {
+                                case 'mds':
+                                    this.#mdsFetch(channel, tags, message, self, otherMessage);
+                                    break;
+                                case 'game':
+                                    this.#gameFetch(channel, tags, message, self, otherMessage);
+                                default:
+                                    break;
+                            }
+                           
                         }
                     });
 
@@ -394,7 +481,8 @@
             firstButtonName: 'autoReply',
             startButtonName: 'startReply',
             stopButtonName: 'stopReply',
-            getMessage: function (currentGameName, otherMessage) {
+            replyType:'game',
+            getMessage: function (json, currentGameName, otherMessage) {
                 var other = otherMessage ? ` 額外留言：${otherMessage}` : '';
                 return `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」${other}`;
             }
@@ -404,7 +492,8 @@
             firstButtonName: 'autoReplyMOD',
             startButtonName: 'startReplyMOD',
             stopButtonName: 'stopReplyMOD',
-            getMessage: function (currentGameName, otherMessage) {
+            replyType: 'game',
+            getMessage: function (json, currentGameName, otherMessage) {
                 //command 其他留言怎麼用沒想好
                 //塞入遊戲名稱改用{game}而不是依照正規表達式，避免一直要修改
                 const fullMessage = document.getElementById('commandReplyTemplate').value.replace(/{game}/, `${currentGameName}`);
@@ -415,6 +504,24 @@
             commandName: '更新遊戲',
         }).init();
 
+        new selfReplyClass({
+            firstButtonName: 'automdsReply',
+            startButtonName: 'startmdsReply',
+            stopButtonName: 'stopmdsReply',
+            replyType: 'mds',
+            commandName: 'mds',
+            immediatelyButtonName: 'immediatelymdsReply',
+            getMessage: function (json) {
+                let kolList = json['kolList'];
+                kolList = kolList.sort((x, y) => y.percentage - x.percentage);
+                let returnMessage = '目前排名(網站數據) => ';
+                returnMessage += `🥇${kolList[0].full_name}:${kolList[0].percentage}%  `;
+                returnMessage += `🥈${kolList[1].full_name}:${kolList[1].percentage}%  `;
+                returnMessage += `差距:${(kolList[0].percentage - kolList[1].percentage).toFixed(4)}%  `;
+              
+                return returnMessage;
+            }
+        }).init();
     </script>
 </body>
 
