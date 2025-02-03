@@ -110,6 +110,10 @@
             </div>
             <br />
 
+            <input type="button" id="autoExchangeReply" class="btn btn-success" value="開始匯率自動回覆並更新" />
+            <input type="button" id="startExchangeReply" class="btn btn-success" value="開始匯率自動回覆並更新" style="display:none;" />
+            <input type="button" id="stopExchangeReply" class="btn btn-danger" value="停止匯率回覆" style="display:none;" />
+
             <input type="button" id="immediatelymdsReply" class="btn btn-success" value="立即mds回覆並更新">
 
             <input type="button" id="automdsReply" class="btn btn-success" value="開始mds自動回覆並更新" />
@@ -221,7 +225,7 @@
            
 
             constructor(options) {
-                let replyTypes = ['game', 'mds'];
+                let replyTypes = ['game', 'mds', 'exchange'];
                 if (!options || !options.replyType ||
                     !options.firstButtonName || !options.startButtonName || !options.stopButtonName ||
                     !options.getMessage || typeof options.getMessage !== 'function') {
@@ -389,6 +393,35 @@
                     });
             }
 
+            #exchangeFetch(channel, tags, message, self, otherMessage) {
+
+                fetch(`https://tw.rter.info/capi.php`)
+                    .then((response) => {
+                        console.log(response);
+                        return response.json();
+                    }).then((json) => {
+                        console.log(json);
+
+                        let currentTag = tags;
+                        let currentOtherMessage = otherMessage;
+
+                        //突然想到留言是我留，別人打禁字我也跟著禁XD
+                        const replyMessage = this.getMessage(json, '', currentOtherMessage);
+
+                        if (currentTag['username'] == 'marsantonymars')
+                            setTimeout(() => { this.#client.say(channel, replyMessage); }, 500);
+                        else
+                            this.#client.say(channel, replyMessage);
+                        
+                        //this.#client.reply(channel, replyMessage, currentTag); //v1.9.0-pre.1
+
+                        var name = currentTag['display-name'] ? `${currentTag['display-name']}(${currentTag['username']})` : currentTag['username'];
+                        var timeStamp = new Date(currentTag['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
+                        document.getElementById('log').innerHTML = `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}\r\n${document.getElementById('log').innerHTML}`;
+
+                    });
+            }
+
             init() {
 
                 if (this.immediatelyButtonName) {
@@ -443,6 +476,9 @@
                         else if (command === this.commandName) {
 
                             switch (this.replyType) {
+                                case 'exchange':
+                                    this.#exchangeFetch(channel, tags, message, self, otherMessage);
+                                    break;
                                 case 'mds':
                                     this.#mdsFetch(channel, tags, message, self, otherMessage);
                                     break;
@@ -522,6 +558,66 @@
                 return returnMessage;
             }
         }).init();
+
+        new selfReplyClass({
+            firstButtonName: 'autoExchangeReply',
+            startButtonName: 'startExchangeReply',
+            stopButtonName: 'stopExchangeReply',
+            replyType: 'exchange',
+            commandName: 'mop',
+            getMessage: function (json, _, otherMessage) {
+                let rateUSDTWD = parseFloat(json['USDTWD']['Exrate']);
+                let rateUSDMOP = parseFloat(json['USDMOP']['Exrate']);
+                if (isNaN(otherMessage))
+                    return '請輸入數字';
+                let currentMOP = ~~otherMessage;
+                let currentTWD = ((currentMOP / rateUSDMOP) * rateUSDTWD).toFixed(0);
+              
+                let returnMessage = `澳門幣：${currentMOP.toLocaleString()} => 台幣：${currentTWD.toLocaleString() }`;
+
+                return returnMessage;
+            }
+        }).init();
+
+        //new selfReplyClass({
+        //    firstButtonName: 'autoExchangeReply',
+        //    startButtonName: 'startExchangeReply',
+        //    stopButtonName: 'stopExchangeReply',
+        //    replyType: 'exchange',
+        //    commandName: 'hkd',
+        //    getMessage: function (json, _, otherMessage) {
+        //        let rateUSDTWD = parseFloat(json['USDTWD']['Exrate']);
+        //        let rateUSDHKD = parseFloat(json['USDHKD']['Exrate']);
+        //        if (isNaN(otherMessage))
+        //            return '請輸入數字';
+        //        let currentHKD = ~~otherMessage;
+        //        let currentTWD = ((currentHKD / rateUSDHKD) * rateUSDTWD).toFixed(0);
+
+        //        let returnMessage = `港幣：${currentHKD.toLocaleString()} => 台幣：${currentTWD.toLocaleString() }`;
+
+        //        return returnMessage;
+        //    }
+        //}).init();
+
+        //new selfReplyClass({
+        //    firstButtonName: 'autoExchangeReply',
+        //    startButtonName: 'startExchangeReply',
+        //    stopButtonName: 'stopExchangeReply',
+        //    replyType: 'exchange',
+        //    commandName: 'twd',
+        //    getMessage: function (json, _, otherMessage) {
+        //        let rateUSDTWD = parseFloat(json['USDTWD']['Exrate']);
+        //        let rateUSDHKD = parseFloat(json['USDHKD']['Exrate']);
+        //        if (isNaN(otherMessage))
+        //            return '請輸入數字';
+        //        let currentTWD = ~~otherMessage;
+        //        let currentHKD = ((currentTWD / rateUSDTWD) * rateUSDHKD).toFixed(0);
+
+        //        let returnMessage = `台幣：${currentTWD.toLocaleString()} => 港幣：${currentHKD.toLocaleString() }`;
+
+        //        return returnMessage;
+        //    }
+        //}).init();
     </script>
 </body>
 
