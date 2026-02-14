@@ -363,6 +363,196 @@ describe('selfReplyClass', () => {
         });
     });
 
+    describe('logTalkingAboutMe（@TAG 記錄）', () => {
+        it('被 reply 時記錄到 log', () => {
+            const mockClient = createMockTmiClient();
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: () => mockClient }
+            );
+            instance.init();
+            document.getElementById('autoReply').click();
+
+            const tags = {
+                username: 'viewer1',
+                'display-name': '觀眾',
+                'tmi-sent-ts': '1700000000000',
+                'reply-parent-user-id': '12345',
+            };
+            mockClient._emit('message', '#channel', tags, '你好啊', false);
+
+            expect(document.getElementById('log').value).toContain('觀眾(viewer1)');
+            expect(document.getElementById('log').value).toContain('你好啊');
+        });
+
+        it('被 @TAG 名稱時記錄到 log', () => {
+            const mockClient = createMockTmiClient();
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: () => mockClient }
+            );
+            instance.init();
+            document.getElementById('autoReply').click();
+
+            const tags = {
+                username: 'viewer1',
+                'display-name': '觀眾',
+                'tmi-sent-ts': '1700000000000',
+            };
+            mockClient._emit('message', '#channel', tags, '嗨 @testuser 你好', false);
+
+            expect(document.getElementById('log').value).toContain('嗨 @testuser 你好');
+        });
+
+        it('被 reply-thread 時記錄到 log', () => {
+            const mockClient = createMockTmiClient();
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: () => mockClient }
+            );
+            instance.init();
+            document.getElementById('autoReply').click();
+
+            const tags = {
+                username: 'viewer1',
+                'display-name': '觀眾',
+                'tmi-sent-ts': '1700000000000',
+                'reply-thread-parent-user-id': '12345',
+            };
+            mockClient._emit('message', '#channel', tags, '串回覆', false);
+
+            expect(document.getElementById('log').value).toContain('串回覆');
+        });
+
+        it('無關訊息不記錄', () => {
+            const mockClient = createMockTmiClient();
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: () => mockClient }
+            );
+            instance.init();
+            document.getElementById('autoReply').click();
+
+            const tags = {
+                username: 'viewer1',
+                'display-name': '觀眾',
+                'tmi-sent-ts': '1700000000000',
+            };
+            mockClient._emit('message', '#channel', tags, '路人訊息', false);
+
+            expect(document.getElementById('log').value).toBe('');
+        });
+    });
+
+    describe('立即回覆（immediatelyButton）', () => {
+        it('點擊立即回覆按鈕觸發 Steam API 並用 say 發送', async () => {
+            const mockClient = createMockTmiClient();
+            const mockFetch = vi.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+                })
+            );
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReplyMOD',
+                    startButtonName: 'startReplyMOD',
+                    stopButtonName: 'stopReplyMOD',
+                    getMessage: (game) => `!command edit !遊戲 ${game}`,
+                    immediatelyButtonName: 'immediatelyReplyMOD',
+                    commandName: '更新遊戲',
+                },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+
+            document.getElementById('immediatelyReplyMOD').click();
+
+            await vi.waitFor(() => {
+                expect(mockFetch).toHaveBeenCalled();
+            });
+
+            await vi.waitFor(() => {
+                expect(mockClient.say).toHaveBeenCalledWith(
+                    'shuteye_orange',
+                    '!command edit !遊戲 Elden Ring'
+                );
+            });
+
+            expect(document.getElementById('log').value).toContain('立即回覆並更新');
+        });
+    });
+
+    describe('NightBot 指令處理', () => {
+        it('收到 !game 指令時暫存 NightBot tag', async () => {
+            const mockClient = createMockTmiClient();
+            const nightbotTags = {
+                username: 'viewer1',
+                'display-name': '觀眾',
+                'tmi-sent-ts': '1700000000000',
+                id: 'msg-123',
+            };
+            const mockFetch = vi.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+                })
+            );
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: (game) => `目前遊戲：${game}`,
+                    commandName: '遊戲',
+                },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+            document.getElementById('autoReply').click();
+
+            // 先發 !game（NightBot 指令名稱）
+            mockClient._emit('message', '#channel', nightbotTags, '!game 額外訊息', false);
+
+            // 再由 nightbot 發 !遊戲，觸發回覆時應使用暫存的 viewer tag
+            const nightbotReplyTags = {
+                username: 'nightbot',
+                'display-name': 'Nightbot',
+                'tmi-sent-ts': '1700000001000',
+                id: 'nightbot-msg',
+            };
+            mockClient._emit('message', '#channel', nightbotReplyTags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                expect(mockClient.reply).toHaveBeenCalledWith(
+                    '#channel',
+                    '目前遊戲：Elden Ring',
+                    nightbotTags
+                );
+            });
+        });
+    });
+
     describe('常數匯出', () => {
         it('匯出正確的 localStorage key', () => {
             expect(STORAGE_USERNAME).toBe('TwitchAutoReply_UserName');
