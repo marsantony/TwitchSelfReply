@@ -10,7 +10,7 @@ class selfReplyClass {
     #replyGameName = '';
     #currentNightBotCommandTag = {};
     #currentNightBotCommandOtherMessage = '';
-    #channels = ['shuteye_orange'];
+    #channel = '';
     #client;
     #isMessageBound = false;
     #tmiClientFactory;
@@ -82,7 +82,7 @@ class selfReplyClass {
                     const logEl = document.getElementById('log');
 
                     if (isImmediate) {
-                        this.#client.say(`${this.#channels[0]}`, replyMessage);
+                        this.#client.say(this.#channel, replyMessage);
                         const timeStamp = new Date().toLocaleString('sv-SE');
                         addLog(logEl, `${timeStamp} 點擊立即回覆並更新(MOD) ，回覆：${replyMessage}`);
                     } else {
@@ -100,6 +100,7 @@ class selfReplyClass {
     }
 
     #connect() {
+        this.#channel = document.getElementById('channel').value;
         this.#client = this.#tmiClientFactory({
             options: {
                 debug: false,
@@ -114,7 +115,7 @@ class selfReplyClass {
                 username: document.getElementById('username').value,
                 password: document.getElementById('password').value
             },
-            channels: this.#channels
+            channels: [this.#channel]
         });
 
         this.#client.connect().catch(console.error);
@@ -140,6 +141,7 @@ class selfReplyClass {
         document.getElementById(this.firstButtonName).addEventListener('click', () => {
             if (!this.#client) this.#connect();
 
+            document.getElementById('channel').disabled = true;
             localStorage.setItem(STORAGE_USERNAME, document.getElementById('username').value);
             sessionStorage.setItem(STORAGE_PASSWORD, document.getElementById('password').value);
             localStorage.setItem(STORAGE_COMMANDREPLYTEMPLATE, document.getElementById('commandReplyTemplate').value);
@@ -176,6 +178,7 @@ class selfReplyClass {
 
         document.getElementById(this.stopButtonName).addEventListener('click', () => {
             this.#isEnable = false;
+            document.getElementById('channel').disabled = false;
             document.getElementById(this.firstButtonName).style.display = 'none';
             document.getElementById(this.startButtonName).style.display = '';
             document.getElementById(this.stopButtonName).style.display = 'none';

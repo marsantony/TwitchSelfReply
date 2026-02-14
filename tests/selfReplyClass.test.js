@@ -29,6 +29,10 @@ function createMockTmiClient() {
 
 function setupDOM() {
     document.body.innerHTML = `
+        <select id="channel">
+            <option value="shuteye_orange">蝦愛橘子</option>
+            <option value="marsantonymars">姬柊雪菜我老婆</option>
+        </select>
         <input id="username" value="testuser" />
         <input id="password" value="oauth:testtoken" />
         <input id="commandReplyTemplate" value="目前遊戲：{game}" />
@@ -270,6 +274,92 @@ describe('selfReplyClass', () => {
             await vi.waitFor(() => {
                 expect(document.getElementById('log').value).toContain('Steam API');
             });
+        });
+    });
+
+    describe('頻道選擇', () => {
+        it('啟動後頻道下拉選單被鎖定', () => {
+            const mockClient = createMockTmiClient();
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: () => mockClient }
+            );
+            instance.init();
+
+            document.getElementById('autoReply').click();
+
+            expect(document.getElementById('channel').disabled).toBe(true);
+        });
+
+        it('停止後頻道下拉選單恢復可選', () => {
+            const mockClient = createMockTmiClient();
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: () => mockClient }
+            );
+            instance.init();
+            document.getElementById('autoReply').click();
+
+            document.getElementById('stopReply').click();
+
+            expect(document.getElementById('channel').disabled).toBe(false);
+        });
+
+        it('連線時使用選中的頻道', () => {
+            const mockClient = createMockTmiClient();
+            const factory = vi.fn(() => mockClient);
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: factory }
+            );
+            instance.init();
+
+            document.getElementById('autoReply').click();
+
+            expect(factory).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    channels: ['shuteye_orange']
+                })
+            );
+        });
+
+        it('選擇第二個頻道後連線使用該頻道', () => {
+            const mockClient = createMockTmiClient();
+            const factory = vi.fn(() => mockClient);
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: factory }
+            );
+            instance.init();
+
+            document.getElementById('channel').value = 'marsantonymars';
+            document.getElementById('autoReply').click();
+
+            expect(factory).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    channels: ['marsantonymars']
+                })
+            );
         });
     });
 
