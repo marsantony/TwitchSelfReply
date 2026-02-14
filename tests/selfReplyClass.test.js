@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { selfReplyClass, STORAGE_USERNAME, STORAGE_PASSWORD, STORAGE_COMMANDREPLYTEMPLATE } from '../src/selfReplyClass.js';
+import { selfReplyClass, STORAGE_COMMANDREPLYTEMPLATE } from '../src/selfReplyClass.js';
 
 // utils 的全域函數需要手動掛載（因為 selfReplyClass 用 /* global */ 引用）
 import * as utils from '../src/utils.js';
@@ -33,8 +33,6 @@ function setupDOM() {
             <option value="shuteye_orange">蝦愛橘子</option>
             <option value="marsantonymars">姬柊雪菜我老婆</option>
         </select>
-        <input id="username" value="testuser" />
-        <input id="password" value="oauth:testtoken" />
         <input id="commandReplyTemplate" value="目前遊戲：{game}" />
         <input id="gameName" value="" />
         <span id="currentSteamGameName"></span>
@@ -55,6 +53,8 @@ describe('selfReplyClass', () => {
         setupDOM();
         localStorage.clear();
         sessionStorage.clear();
+        sessionStorage.setItem('Twitch_OAuthToken', 'testtoken');
+        sessionStorage.setItem('Twitch_OAuthUsername', 'testuser');
     });
 
     describe('constructor', () => {
@@ -106,7 +106,7 @@ describe('selfReplyClass', () => {
             expect(() => instance.init()).not.toThrow();
         });
 
-        it('init 後點擊按鈕會儲存設定到 localStorage', () => {
+        it('init 後點擊按鈕會儲存 commandReplyTemplate 到 localStorage', () => {
             const mockClient = createMockTmiClient();
             const instance = new selfReplyClass(
                 {
@@ -121,8 +121,7 @@ describe('selfReplyClass', () => {
 
             document.getElementById('autoReply').click();
 
-            expect(localStorage.getItem(STORAGE_USERNAME)).toBe('testuser');
-            expect(sessionStorage.getItem(STORAGE_PASSWORD)).toBe('oauth:testtoken');
+            expect(localStorage.getItem(STORAGE_COMMANDREPLYTEMPLATE)).toBe('目前遊戲：{game}');
         });
 
         it('點擊開始後按鈕狀態切換正確', () => {
@@ -555,9 +554,35 @@ describe('selfReplyClass', () => {
 
     describe('常數匯出', () => {
         it('匯出正確的 localStorage key', () => {
-            expect(STORAGE_USERNAME).toBe('TwitchAutoReply_UserName');
-            expect(STORAGE_PASSWORD).toBe('TwitchAutoReply_Password');
             expect(STORAGE_COMMANDREPLYTEMPLATE).toBe('TwitchAutoReply_CommandReplyTemplate');
+        });
+    });
+
+    describe('OAuth 認證', () => {
+        it('連線時使用 sessionStorage 中的 token 和 username', () => {
+            const mockClient = createMockTmiClient();
+            const factory = vi.fn(() => mockClient);
+            const instance = new selfReplyClass(
+                {
+                    firstButtonName: 'autoReply',
+                    startButtonName: 'startReply',
+                    stopButtonName: 'stopReply',
+                    getMessage: () => 'test',
+                },
+                { tmiClientFactory: factory }
+            );
+            instance.init();
+
+            document.getElementById('autoReply').click();
+
+            expect(factory).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    identity: {
+                        username: 'testuser',
+                        password: 'testtoken'
+                    }
+                })
+            );
         });
     });
 });

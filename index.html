@@ -61,7 +61,6 @@
         }
 
         input[type="text"],
-        input[type="password"],
         select,
         textarea {
             width: 100%;
@@ -78,7 +77,6 @@
         }
 
         input[type="text"]:focus,
-        input[type="password"]:focus,
         select:focus,
         textarea:focus {
             box-shadow: inset 4px 4px 8px #a8abb1, inset -4px -4px 8px #fafbfd;
@@ -203,6 +201,31 @@
             text-decoration: underline;
         }
 
+        /* ── Auth ── */
+        .auth-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            background: #d4d7dd;
+            box-shadow: inset 3px 3px 6px #b0b3b9, inset -3px -3px 6px #f5f6f8;
+        }
+
+        .auth-section .auth-username {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #3a3f4a;
+            flex: 1;
+        }
+
+        .auth-section .btn {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
+            box-shadow: 3px 3px 6px #b0b3b9, -3px -3px 6px #f5f6f8;
+        }
+
         /* ── Footer ── */
         footer {
             border-top: 1px solid #c0c3c9;
@@ -235,16 +258,14 @@
             </select>
         </div>
 
-        <div class="form-group">
-            <label for="username">使用者帳號</label>
-            <input type="text" id="username" />
-        </div>
-
-        <div class="form-group">
-            <label for="password">OAuth密碼
-                <a href="https://twitchapps.com/tmi/" target="_blank">取得 OAuth</a>
-            </label>
-            <input type="password" id="password" />
+        <div id="authSection">
+            <div id="authLoggedOut" class="form-group">
+                <button type="button" id="twitchLogin" class="btn btn-primary">使用 Twitch 登入</button>
+            </div>
+            <div id="authLoggedIn" class="auth-section" style="display:none;">
+                <span class="auth-username" id="authUsername"></span>
+                <button type="button" id="twitchLogout" class="btn btn-danger">登出</button>
+            </div>
         </div>
 
         <div class="form-group">
@@ -298,14 +319,37 @@
         </footer>
     </div>
 
+    <script src="https://marsantony.github.io/shared/twitch-auth.js"></script>
     <script src="./js/tmi.min.js"></script>
     <script src="./src/utils.js"></script>
     <script src="./src/selfReplyClass.js"></script>
 
     <script src="https://marsantony.github.io/shared/shared.js"></script>
     <script>
-        document.getElementById('username').value = localStorage.getItem(STORAGE_USERNAME) || '';
-        document.getElementById('password').value = sessionStorage.getItem(STORAGE_PASSWORD) || '';
+        var CLIENT_ID = '1qewxbrcvgrcpxqhqecxuitqwgjc2p';
+
+        function updateAuthUI() {
+            if (TwitchAuth.isLoggedIn()) {
+                document.getElementById('authLoggedOut').style.display = 'none';
+                document.getElementById('authLoggedIn').style.display = '';
+                document.getElementById('authUsername').textContent = TwitchAuth.getUsername();
+            } else {
+                document.getElementById('authLoggedOut').style.display = '';
+                document.getElementById('authLoggedIn').style.display = 'none';
+            }
+        }
+
+        document.getElementById('twitchLogin').addEventListener('click', function () {
+            TwitchAuth.login(CLIENT_ID);
+        });
+
+        document.getElementById('twitchLogout').addEventListener('click', function () {
+            TwitchAuth.logout();
+            updateAuthUI();
+        });
+
+        updateAuthUI();
+
         document.getElementById('commandReplyTemplate').value = localStorage.getItem(STORAGE_COMMANDREPLYTEMPLATE) || '';
 
         new selfReplyClass({

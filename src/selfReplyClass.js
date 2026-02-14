@@ -1,7 +1,5 @@
 /* global addLog, formatUserName, formatTimestamp, shouldReply, tmi */
 
-const STORAGE_USERNAME = 'TwitchAutoReply_UserName';
-const STORAGE_PASSWORD = 'TwitchAutoReply_Password';
 const STORAGE_COMMANDREPLYTEMPLATE = 'TwitchAutoReply_CommandReplyTemplate';
 
 class selfReplyClass {
@@ -112,8 +110,8 @@ class selfReplyClass {
                 secure: true
             },
             identity: {
-                username: document.getElementById('username').value,
-                password: document.getElementById('password').value
+                username: sessionStorage.getItem('Twitch_OAuthUsername') || '',
+                password: sessionStorage.getItem('Twitch_OAuthToken') || ''
             },
             channels: [this.#channel]
         });
@@ -142,8 +140,6 @@ class selfReplyClass {
             if (!this.#client) this.#connect();
 
             document.getElementById('channel').disabled = true;
-            localStorage.setItem(STORAGE_USERNAME, document.getElementById('username').value);
-            sessionStorage.setItem(STORAGE_PASSWORD, document.getElementById('password').value);
             localStorage.setItem(STORAGE_COMMANDREPLYTEMPLATE, document.getElementById('commandReplyTemplate').value);
 
             if (!this.#isMessageBound) {
@@ -187,5 +183,5 @@ class selfReplyClass {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { selfReplyClass, STORAGE_USERNAME, STORAGE_PASSWORD, STORAGE_COMMANDREPLYTEMPLATE };
+    module.exports = { selfReplyClass, STORAGE_COMMANDREPLYTEMPLATE };
 }
