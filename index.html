@@ -290,12 +290,10 @@
         <div class="btn-row">
             <button type="button" id="immediatelyReplyMOD" class="btn btn-success">立即回覆並更新(MOD)</button>
 
-            <button type="button" id="autoReplyMOD" class="btn btn-success">開始自動回覆並更新(MOD)</button>
-            <button type="button" id="startReplyMOD" class="btn btn-success" style="display:none;">開始自動回覆並更新(MOD)</button>
+            <button type="button" id="startReplyMOD" class="btn btn-success">開始自動回覆並更新(MOD)</button>
             <button type="button" id="stopReplyMOD" class="btn btn-danger" style="display:none;">停止回覆(MOD)</button>
 
-            <button type="button" id="autoReply" class="btn btn-primary">開始自動回覆</button>
-            <button type="button" id="startReply" class="btn btn-primary" style="display:none;">開始自動回覆</button>
+            <button type="button" id="startReply" class="btn btn-primary">開始自動回覆</button>
             <button type="button" id="stopReply" class="btn btn-danger" style="display:none;">停止回覆</button>
         </div>
 
@@ -353,7 +351,6 @@
         document.getElementById('commandReplyTemplate').value = localStorage.getItem(STORAGE_COMMANDREPLYTEMPLATE) || '';
 
         new selfReplyClass({
-            firstButtonName: 'autoReply',
             startButtonName: 'startReply',
             stopButtonName: 'stopReply',
             getMessage: function (currentGameName, otherMessage) {
@@ -363,7 +360,6 @@
         }).init();
 
         new selfReplyClass({
-            firstButtonName: 'autoReplyMOD',
             startButtonName: 'startReplyMOD',
             stopButtonName: 'stopReplyMOD',
             getMessage: function (currentGameName, otherMessage) {

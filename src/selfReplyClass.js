@@ -10,19 +10,16 @@ class selfReplyClass {
     #currentNightBotCommandOtherMessage = '';
     #channel = '';
     #client;
-    #isMessageBound = false;
     #tmiClientFactory;
     #fetchFn;
 
     constructor(options, deps) {
-        if (!options || !options.firstButtonName ||
-            !options.startButtonName || !options.stopButtonName ||
+        if (!options || !options.startButtonName || !options.stopButtonName ||
             !options.getMessage || typeof options.getMessage !== 'function') {
             this._invalid = true;
             return;
         }
 
-        this.firstButtonName = options.firstButtonName;
         this.startButtonName = options.startButtonName;
         this.stopButtonName = options.stopButtonName;
         this.getMessage = options.getMessage;
@@ -97,7 +94,15 @@ class selfReplyClass {
             });
     }
 
+    #disconnect() {
+        if (this.#client) {
+            this.#client.disconnect().catch(() => {});
+            this.#client = null;
+        }
+    }
+
     #connect() {
+        this.#disconnect();
         this.#channel = document.getElementById('channel').value;
         this.#client = this.#tmiClientFactory({
             options: {
@@ -126,6 +131,25 @@ class selfReplyClass {
         });
     }
 
+    #bindMessageHandler() {
+        this.#client.on('message', (channel, tags, message, self) => {
+            this.#logTalkingAboutMe(tags, message);
+            if (!this.#isEnable) return;
+            if (self || !message.startsWith('!')) return;
+
+            const args = message.slice(1).split(' ');
+            const command = args.shift().toLowerCase();
+            const otherMessage = args.join(' ');
+
+            if (command === this.commandNameInNightBot) {
+                this.#currentNightBotCommandTag = tags;
+                this.#currentNightBotCommandOtherMessage = otherMessage;
+            } else if (command === this.commandName) {
+                this.#handleSteamReply(channel, tags, otherMessage, false);
+            }
+        });
+    }
+
     init() {
         if (this._invalid) return;
 
@@ -136,46 +160,23 @@ class selfReplyClass {
             });
         }
 
-        document.getElementById(this.firstButtonName).addEventListener('click', () => {
-            if (!this.#client) this.#connect();
+        document.getElementById(this.startButtonName).addEventListener('click', () => {
+            this.#connect();
+            this.#bindMessageHandler();
 
+            this.#isEnable = true;
             document.getElementById('channel').disabled = true;
             localStorage.setItem(STORAGE_COMMANDREPLYTEMPLATE, document.getElementById('commandReplyTemplate').value);
 
-            if (!this.#isMessageBound) {
-                this.#isMessageBound = true;
-                this.#client.on('message', (channel, tags, message, self) => {
-                    this.#logTalkingAboutMe(tags, message);
-                    if (!this.#isEnable) return;
-                    if (self || !message.startsWith('!')) return;
-
-                    const args = message.slice(1).split(' ');
-                    const command = args.shift().toLowerCase();
-                    const otherMessage = args.join(' ');
-
-                    if (command === this.commandNameInNightBot) {
-                        this.#currentNightBotCommandTag = tags;
-                        this.#currentNightBotCommandOtherMessage = otherMessage;
-                    } else if (command === this.commandName) {
-                        this.#handleSteamReply(channel, tags, otherMessage, false);
-                    }
-                });
-            }
-
-            document.getElementById(this.startButtonName).click();
-        });
-
-        document.getElementById(this.startButtonName).addEventListener('click', () => {
-            this.#isEnable = true;
-            document.getElementById(this.firstButtonName).style.display = 'none';
             document.getElementById(this.startButtonName).style.display = 'none';
             document.getElementById(this.stopButtonName).style.display = '';
         });
 
         document.getElementById(this.stopButtonName).addEventListener('click', () => {
             this.#isEnable = false;
+            this.#disconnect();
             document.getElementById('channel').disabled = false;
-            document.getElementById(this.firstButtonName).style.display = 'none';
+
             document.getElementById(this.startButtonName).style.display = '';
             document.getElementById(this.stopButtonName).style.display = 'none';
         });

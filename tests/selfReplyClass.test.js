@@ -12,6 +12,7 @@ function createMockTmiClient() {
     const handlers = {};
     return {
         connect: vi.fn(() => Promise.resolve()),
+        disconnect: vi.fn(() => Promise.resolve()),
         on: vi.fn((event, handler) => {
             if (!handlers[event]) handlers[event] = [];
             handlers[event].push(handler);
@@ -38,14 +39,24 @@ function setupDOM() {
         <span id="currentSteamGameName"></span>
         <span id="currentCommandReplyGameName"></span>
         <textarea id="log"></textarea>
-        <button id="autoReply">自動回覆</button>
-        <button id="startReply" style="display:none">開始</button>
-        <button id="stopReply" style="display:none">停止</button>
-        <button id="immediatelyReplyMOD">立即回覆</button>
-        <button id="autoReplyMOD">自動回覆MOD</button>
-        <button id="startReplyMOD" style="display:none">開始MOD</button>
-        <button id="stopReplyMOD" style="display:none">停止MOD</button>
+        <button id="startReply">開始自動回覆</button>
+        <button id="stopReply" style="display:none">停止回覆</button>
+        <button id="immediatelyReplyMOD">立即回覆並更新(MOD)</button>
+        <button id="startReplyMOD">開始自動回覆並更新(MOD)</button>
+        <button id="stopReplyMOD" style="display:none">停止回覆(MOD)</button>
     `;
+}
+
+function createInstance(overrides, deps) {
+    return new selfReplyClass(
+        {
+            startButtonName: 'startReply',
+            stopButtonName: 'stopReply',
+            getMessage: () => 'test',
+            ...overrides,
+        },
+        deps
+    );
 }
 
 describe('selfReplyClass', () => {
@@ -65,7 +76,6 @@ describe('selfReplyClass', () => {
 
         it('缺少 getMessage 時標記為 invalid', () => {
             const instance = new selfReplyClass({
-                firstButtonName: 'autoReply',
                 startButtonName: 'startReply',
                 stopButtonName: 'stopReply',
             });
@@ -73,24 +83,13 @@ describe('selfReplyClass', () => {
         });
 
         it('完整參數時正常建立', () => {
-            const instance = new selfReplyClass({
-                firstButtonName: 'autoReply',
-                startButtonName: 'startReply',
-                stopButtonName: 'stopReply',
-                getMessage: () => 'test',
-            });
+            const instance = createInstance();
             expect(instance._invalid).toBeUndefined();
             expect(instance.commandName).toBe('遊戲');
         });
 
         it('可自訂 commandName', () => {
-            const instance = new selfReplyClass({
-                firstButtonName: 'autoReply',
-                startButtonName: 'startReply',
-                stopButtonName: 'stopReply',
-                getMessage: () => 'test',
-                commandName: '更新遊戲',
-            });
+            const instance = createInstance({ commandName: '更新遊戲' });
             expect(instance.commandName).toBe('更新遊戲');
         });
 
@@ -106,84 +105,59 @@ describe('selfReplyClass', () => {
             expect(() => instance.init()).not.toThrow();
         });
 
-        it('init 後點擊按鈕會儲存 commandReplyTemplate 到 localStorage', () => {
+        it('點擊開始後儲存 commandReplyTemplate 到 localStorage', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: (game) => `遊戲：${game}`,
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
 
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             expect(localStorage.getItem(STORAGE_COMMANDREPLYTEMPLATE)).toBe('目前遊戲：{game}');
         });
 
         it('點擊開始後按鈕狀態切換正確', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
 
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
-            // 開始後：autoReply 和 startReply 隱藏，stopReply 顯示
-            expect(document.getElementById('autoReply').style.display).toBe('none');
             expect(document.getElementById('startReply').style.display).toBe('none');
             expect(document.getElementById('stopReply').style.display).toBe('');
         });
 
         it('點擊停止後按鈕狀態切換正確', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             document.getElementById('stopReply').click();
 
-            // 停止後：autoReply 隱藏，startReply 顯示，stopReply 隱藏
-            expect(document.getElementById('autoReply').style.display).toBe('none');
             expect(document.getElementById('startReply').style.display).toBe('');
             expect(document.getElementById('stopReply').style.display).toBe('none');
+        });
+
+        it('點擊停止後會斷開連線', () => {
+            const mockClient = createMockTmiClient();
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
+            instance.init();
+            document.getElementById('startReply').click();
+
+            document.getElementById('stopReply').click();
+
+            expect(mockClient.disconnect).toHaveBeenCalled();
         });
     });
 
     describe('connect 與訊息處理', () => {
-        it('點擊 autoReply 時建立 tmi 連線', () => {
+        it('點擊 startReply 時建立 tmi 連線', () => {
             const mockClient = createMockTmiClient();
             const factory = vi.fn(() => mockClient);
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: factory }
-            );
+            const instance = createInstance({}, { tmiClientFactory: factory });
             instance.init();
 
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             expect(factory).toHaveBeenCalledTimes(1);
             expect(mockClient.connect).toHaveBeenCalled();
@@ -191,19 +165,10 @@ describe('selfReplyClass', () => {
 
         it('StreamElements 訊息更新 replyGameName', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
-            // connect 內部註冊的第一個 message handler 處理 StreamElements
             mockClient._emit('message', '#channel', { username: 'streamelements' }, '目前遊戲名稱：Elden Ring', false);
 
             expect(document.getElementById('currentCommandReplyGameName').textContent)
@@ -220,20 +185,13 @@ describe('selfReplyClass', () => {
                     json: () => Promise.resolve({ GameName: 'Elden Ring' }),
                 })
             );
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: (game) => `目前遊戲：${game}`,
-                    commandName: '遊戲',
-                },
+            const instance = createInstance(
+                { getMessage: (game) => `目前遊戲：${game}`, commandName: '遊戲' },
                 { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
             );
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
-            // 模擬收到 !遊戲 指令（第二個 message handler）
             const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
             mockClient._emit('message', '#channel', tags, '!遊戲', false);
 
@@ -255,17 +213,9 @@ describe('selfReplyClass', () => {
             const mockFetch = vi.fn(() =>
                 Promise.resolve({ ok: false, status: 500 })
             );
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient, fetchFn: mockFetch });
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
             mockClient._emit('message', '#channel', tags, '!遊戲', false);
@@ -279,35 +229,19 @@ describe('selfReplyClass', () => {
     describe('頻道選擇', () => {
         it('啟動後頻道下拉選單被鎖定', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
 
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             expect(document.getElementById('channel').disabled).toBe(true);
         });
 
         it('停止後頻道下拉選單恢復可選', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             document.getElementById('stopReply').click();
 
@@ -317,18 +251,10 @@ describe('selfReplyClass', () => {
         it('連線時使用選中的頻道', () => {
             const mockClient = createMockTmiClient();
             const factory = vi.fn(() => mockClient);
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: factory }
-            );
+            const instance = createInstance({}, { tmiClientFactory: factory });
             instance.init();
 
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             expect(factory).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -340,19 +266,11 @@ describe('selfReplyClass', () => {
         it('選擇第二個頻道後連線使用該頻道', () => {
             const mockClient = createMockTmiClient();
             const factory = vi.fn(() => mockClient);
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: factory }
-            );
+            const instance = createInstance({}, { tmiClientFactory: factory });
             instance.init();
 
             document.getElementById('channel').value = 'marsantonymars';
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             expect(factory).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -360,22 +278,46 @@ describe('selfReplyClass', () => {
                 })
             );
         });
+
+        it('停止後切換頻道再開始，使用新頻道建立連線', () => {
+            const mockClient1 = createMockTmiClient();
+            const mockClient2 = createMockTmiClient();
+            let callCount = 0;
+            const factory = vi.fn(() => {
+                callCount++;
+                return callCount === 1 ? mockClient1 : mockClient2;
+            });
+            const instance = createInstance({}, { tmiClientFactory: factory });
+            instance.init();
+
+            // 第一次：連到 shuteye_orange
+            document.getElementById('startReply').click();
+            expect(factory).toHaveBeenCalledTimes(1);
+            expect(factory).toHaveBeenLastCalledWith(
+                expect.objectContaining({ channels: ['shuteye_orange'] })
+            );
+
+            // 停止
+            document.getElementById('stopReply').click();
+            expect(mockClient1.disconnect).toHaveBeenCalled();
+
+            // 切換頻道，重新開始
+            document.getElementById('channel').value = 'marsantonymars';
+            document.getElementById('startReply').click();
+
+            expect(factory).toHaveBeenCalledTimes(2);
+            expect(factory).toHaveBeenLastCalledWith(
+                expect.objectContaining({ channels: ['marsantonymars'] })
+            );
+        });
     });
 
     describe('logTalkingAboutMe（@TAG 記錄）', () => {
         it('被 reply 時記錄到 log', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             const tags = {
                 username: 'viewer1',
@@ -391,17 +333,9 @@ describe('selfReplyClass', () => {
 
         it('被 @TAG 名稱時記錄到 log', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             const tags = {
                 username: 'viewer1',
@@ -415,17 +349,9 @@ describe('selfReplyClass', () => {
 
         it('被 reply-thread 時記錄到 log', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             const tags = {
                 username: 'viewer1',
@@ -440,17 +366,9 @@ describe('selfReplyClass', () => {
 
         it('無關訊息不記錄', () => {
             const mockClient = createMockTmiClient();
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: () => mockClient }
-            );
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             const tags = {
                 username: 'viewer1',
@@ -472,9 +390,8 @@ describe('selfReplyClass', () => {
                     json: () => Promise.resolve({ GameName: 'Elden Ring' }),
                 })
             );
-            const instance = new selfReplyClass(
+            const instance = createInstance(
                 {
-                    firstButtonName: 'autoReplyMOD',
                     startButtonName: 'startReplyMOD',
                     stopButtonName: 'stopReplyMOD',
                     getMessage: (game) => `!command edit !遊戲 ${game}`,
@@ -517,18 +434,12 @@ describe('selfReplyClass', () => {
                     json: () => Promise.resolve({ GameName: 'Elden Ring' }),
                 })
             );
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: (game) => `目前遊戲：${game}`,
-                    commandName: '遊戲',
-                },
+            const instance = createInstance(
+                { getMessage: (game) => `目前遊戲：${game}`, commandName: '遊戲' },
                 { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
             );
             instance.init();
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             // 先發 !game（NightBot 指令名稱）
             mockClient._emit('message', '#channel', nightbotTags, '!game 額外訊息', false);
@@ -562,18 +473,10 @@ describe('selfReplyClass', () => {
         it('連線時使用 sessionStorage 中的 token 和 username', () => {
             const mockClient = createMockTmiClient();
             const factory = vi.fn(() => mockClient);
-            const instance = new selfReplyClass(
-                {
-                    firstButtonName: 'autoReply',
-                    startButtonName: 'startReply',
-                    stopButtonName: 'stopReply',
-                    getMessage: () => 'test',
-                },
-                { tmiClientFactory: factory }
-            );
+            const instance = createInstance({}, { tmiClientFactory: factory });
             instance.init();
 
-            document.getElementById('autoReply').click();
+            document.getElementById('startReply').click();
 
             expect(factory).toHaveBeenCalledWith(
                 expect.objectContaining({
