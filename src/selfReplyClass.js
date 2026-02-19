@@ -6,8 +6,6 @@ class selfReplyClass {
     #isEnable = false;
     #currentGameName = '';
     #replyGameName = '';
-    #currentNightBotCommandTag = {};
-    #currentNightBotCommandOtherMessage = '';
     #channel = '';
     #steamId = '';
     #client;
@@ -24,10 +22,7 @@ class selfReplyClass {
         this.startButtonName = options.startButtonName;
         this.stopButtonName = options.stopButtonName;
         this.getMessage = options.getMessage;
-
-        this.immediatelyButtonName = options.immediatelyButtonName;
         this.commandName = options.commandName || '遊戲';
-        this.commandNameInNightBot = 'game';
 
         this.#tmiClientFactory = (deps && deps.tmiClientFactory) || ((opts) => new tmi.Client(opts));
         this.#fetchFn = (deps && deps.fetchFn) || fetch.bind(typeof window !== 'undefined' ? window : globalThis);
@@ -49,7 +44,7 @@ class selfReplyClass {
         }
     }
 
-    #handleSteamReply(channel, tags, otherMessage, isImmediate) {
+    #handleSteamReply(channel, tags, otherMessage) {
         this.#fetchFn('https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetSteamStatus?steamid=' + encodeURIComponent(this.#steamId))
             .then((response) => {
                 if (!response.ok) {
@@ -62,31 +57,12 @@ class selfReplyClass {
                 this.#currentGameName = document.getElementById('gameName').value || json['GameName'];
 
                 if (shouldReply(this.#currentGameName, this.#replyGameName)) {
-                    let currentTag = tags;
-                    let currentOtherMessage = otherMessage;
-
-                    if (!isImmediate && tags && tags.username &&
-                        tags.username.toLowerCase() === 'nightbot' &&
-                        this.#currentNightBotCommandTag['id']) {
-                        currentTag = this.#currentNightBotCommandTag;
-                        currentOtherMessage = this.#currentNightBotCommandOtherMessage;
-                        this.#currentNightBotCommandTag = {};
-                        this.#currentNightBotCommandOtherMessage = '';
-                    }
-
-                    const replyMessage = this.getMessage(this.#currentGameName);
+                    const replyMessage = this.getMessage(this.#currentGameName, otherMessage);
                     const logEl = document.getElementById('log');
-
-                    if (isImmediate) {
-                        this.#client.say(this.#channel, replyMessage);
-                        const timeStamp = new Date().toLocaleString('sv-SE');
-                        addLog(logEl, `${timeStamp} 點擊立即回覆並更新(MOD) ，回覆：${replyMessage}`);
-                    } else {
-                        this.#client.reply(channel, replyMessage, currentTag);
-                        const name = formatUserName(currentTag);
-                        const timeStamp = formatTimestamp(currentTag['tmi-sent-ts']);
-                        addLog(logEl, `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}`);
-                    }
+                    this.#client.reply(channel, replyMessage, tags);
+                    const name = formatUserName(tags);
+                    const timeStamp = formatTimestamp(tags['tmi-sent-ts']);
+                    addLog(logEl, `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}`);
                 }
             })
             .catch((err) => {
@@ -144,11 +120,8 @@ class selfReplyClass {
             const command = args.shift().toLowerCase();
             const otherMessage = args.join(' ');
 
-            if (command === this.commandNameInNightBot) {
-                this.#currentNightBotCommandTag = tags;
-                this.#currentNightBotCommandOtherMessage = otherMessage;
-            } else if (command === this.commandName) {
-                this.#handleSteamReply(channel, tags, otherMessage, false);
+            if (command === this.commandName) {
+                this.#handleSteamReply(channel, tags, otherMessage);
             }
         });
     }
@@ -169,13 +142,6 @@ class selfReplyClass {
 
     init() {
         if (this._invalid) return;
-
-        if (this.immediatelyButtonName) {
-            document.getElementById(this.immediatelyButtonName).addEventListener('click', () => {
-                if (!this.#client) this.#connect();
-                this.#handleSteamReply(null, null, null, true);
-            });
-        }
 
         document.getElementById(this.startButtonName).addEventListener('click', () => {
             this.#connect();

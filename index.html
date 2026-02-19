@@ -291,26 +291,12 @@
         </div>
 
         <div class="form-group">
-            <label for="commandReplyTemplate">!遊戲指令 Template（MOD）（遊戲名稱帶入 {game}）</label>
+            <label for="commandReplyTemplate">自動回覆 Template（遊戲名稱帶入 {game}）</label>
             <input type="text" id="commandReplyTemplate" />
         </div>
 
-        <details>
-            <summary>全部教學</summary>
-            <div class="tutorial-body">
-                <a href="https://youtu.be/0tALZ0xlfec" target="_blank">&#9654; 立即回覆並更新(MOD) 教學</a>
-                <a href="https://youtu.be/lpnocSfG-f0" target="_blank">&#9654; 開始自動回覆並更新(MOD) 教學</a>
-                <a href="https://youtu.be/IiMNW3lS1xE" target="_blank">&#9654; 開始自動回覆 教學</a>
-            </div>
-        </details>
-
         <p class="auth-hint" id="authHint">請先登入 Twitch 才能使用以下功能</p>
         <div class="btn-row">
-            <button type="button" id="immediatelyReplyMOD" class="btn btn-success" disabled>立即回覆並更新(MOD)</button>
-
-            <button type="button" id="startReplyMOD" class="btn btn-success" disabled>開始自動回覆並更新(MOD)</button>
-            <button type="button" id="stopReplyMOD" class="btn btn-danger" style="display:none;">停止回覆(MOD)</button>
-
             <button type="button" id="startReply" class="btn btn-primary" disabled>開始自動回覆</button>
             <button type="button" id="stopReply" class="btn btn-danger" style="display:none;">停止回覆</button>
         </div>
@@ -343,7 +329,6 @@
     <script src="https://marsantony.github.io/shared/shared.js"></script>
     <script>
         var CLIENT_ID = '1qewxbrcvgrcpxqhqecxuitqwgjc2p';
-        var ACTION_BUTTON_IDS = ['immediatelyReplyMOD', 'startReplyMOD', 'startReply'];
 
         function updateAuthUI() {
             var loggedIn = TwitchAuth.isLoggedIn();
@@ -357,10 +342,7 @@
                 document.getElementById('authLoggedIn').style.display = 'none';
             }
 
-            // 根據登入狀態啟用/停用操作按鈕
-            ACTION_BUTTON_IDS.forEach(function (id) {
-                document.getElementById(id).disabled = !loggedIn;
-            });
+            document.getElementById('startReply').disabled = !loggedIn;
             document.getElementById('authHint').style.display = loggedIn ? 'none' : '';
         }
 
@@ -369,10 +351,7 @@
         });
 
         document.getElementById('twitchLogout').addEventListener('click', function () {
-            // 登出前先停止所有進行中的自動回覆
             replyInstance.stop();
-            replyMODInstance.stop();
-
             TwitchAuth.logout();
             updateAuthUI();
         });
@@ -383,23 +362,15 @@
             startButtonName: 'startReply',
             stopButtonName: 'stopReply',
             getMessage: function (currentGameName, otherMessage) {
+                var template = document.getElementById('commandReplyTemplate').value;
+                if (template) {
+                    return replaceGamePlaceholder(template, currentGameName);
+                }
                 var other = otherMessage ? ` 額外留言：${otherMessage}` : '';
                 return `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」${other}`;
             }
         });
         replyInstance.init();
-
-        var replyMODInstance = new selfReplyClass({
-            startButtonName: 'startReplyMOD',
-            stopButtonName: 'stopReplyMOD',
-            getMessage: function (currentGameName, otherMessage) {
-                const fullMessage = replaceGamePlaceholder(document.getElementById('commandReplyTemplate').value, currentGameName);
-                return `!command edit !遊戲 ${fullMessage}`;
-            },
-            immediatelyButtonName: 'immediatelyReplyMOD',
-            commandName: '更新遊戲',
-        });
-        replyMODInstance.init();
 
         updateAuthUI();
     </script>

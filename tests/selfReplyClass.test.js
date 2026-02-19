@@ -17,7 +17,6 @@ function createMockTmiClient() {
             if (!handlers[event]) handlers[event] = [];
             handlers[event].push(handler);
         }),
-        say: vi.fn(),
         reply: vi.fn(),
         username: 'testuser',
         globaluserstate: { 'user-id': '12345', 'display-name': 'TestUser' },
@@ -41,9 +40,6 @@ function setupDOM() {
         <textarea id="log"></textarea>
         <button id="startReply">開始自動回覆</button>
         <button id="stopReply" style="display:none">停止回覆</button>
-        <button id="immediatelyReplyMOD">立即回覆並更新(MOD)</button>
-        <button id="startReplyMOD">開始自動回覆並更新(MOD)</button>
-        <button id="stopReplyMOD" style="display:none">停止回覆(MOD)</button>
     `;
 }
 
@@ -440,88 +436,6 @@ describe('selfReplyClass', () => {
             mockClient._emit('message', '#channel', tags, '路人訊息', false);
 
             expect(document.getElementById('log').value).toBe('');
-        });
-    });
-
-    describe('立即回覆（immediatelyButton）', () => {
-        it('點擊立即回覆按鈕觸發 Steam API 並用 say 發送', async () => {
-            const mockClient = createMockTmiClient();
-            const mockFetch = vi.fn(() =>
-                Promise.resolve({
-                    ok: true,
-                    json: () => Promise.resolve({ GameName: 'Elden Ring' }),
-                })
-            );
-            const instance = createInstance(
-                {
-                    startButtonName: 'startReplyMOD',
-                    stopButtonName: 'stopReplyMOD',
-                    getMessage: (game) => `!command edit !遊戲 ${game}`,
-                    immediatelyButtonName: 'immediatelyReplyMOD',
-                    commandName: '更新遊戲',
-                },
-                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
-            );
-            instance.init();
-
-            document.getElementById('immediatelyReplyMOD').click();
-
-            await vi.waitFor(() => {
-                expect(mockFetch).toHaveBeenCalled();
-            });
-
-            await vi.waitFor(() => {
-                expect(mockClient.say).toHaveBeenCalledWith(
-                    'shuteye_orange',
-                    '!command edit !遊戲 Elden Ring'
-                );
-            });
-
-            expect(document.getElementById('log').value).toContain('立即回覆並更新');
-        });
-    });
-
-    describe('NightBot 指令處理', () => {
-        it('收到 !game 指令時暫存 NightBot tag', async () => {
-            const mockClient = createMockTmiClient();
-            const nightbotTags = {
-                username: 'viewer1',
-                'display-name': '觀眾',
-                'tmi-sent-ts': '1700000000000',
-                id: 'msg-123',
-            };
-            const mockFetch = vi.fn(() =>
-                Promise.resolve({
-                    ok: true,
-                    json: () => Promise.resolve({ GameName: 'Elden Ring' }),
-                })
-            );
-            const instance = createInstance(
-                { getMessage: (game) => `目前遊戲：${game}`, commandName: '遊戲' },
-                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
-            );
-            instance.init();
-            document.getElementById('startReply').click();
-
-            // 先發 !game（NightBot 指令名稱）
-            mockClient._emit('message', '#channel', nightbotTags, '!game 額外訊息', false);
-
-            // 再由 nightbot 發 !遊戲，觸發回覆時應使用暫存的 viewer tag
-            const nightbotReplyTags = {
-                username: 'nightbot',
-                'display-name': 'Nightbot',
-                'tmi-sent-ts': '1700000001000',
-                id: 'nightbot-msg',
-            };
-            mockClient._emit('message', '#channel', nightbotReplyTags, '!遊戲', false);
-
-            await vi.waitFor(() => {
-                expect(mockClient.reply).toHaveBeenCalledWith(
-                    '#channel',
-                    '目前遊戲：Elden Ring',
-                    nightbotTags
-                );
-            });
         });
     });
 
