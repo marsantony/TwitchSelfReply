@@ -9,6 +9,7 @@ class selfReplyClass {
     #currentNightBotCommandTag = {};
     #currentNightBotCommandOtherMessage = '';
     #channel = '';
+    #steamId = '';
     #client;
     #tmiClientFactory;
     #fetchFn;
@@ -49,7 +50,7 @@ class selfReplyClass {
     }
 
     #handleSteamReply(channel, tags, otherMessage, isImmediate) {
-        this.#fetchFn('https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus')
+        this.#fetchFn('https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetSteamStatus?steamid=' + encodeURIComponent(this.#steamId))
             .then((response) => {
                 if (!response.ok) {
                     throw new Error(`Steam API 回應錯誤: ${response.status}`);
@@ -103,7 +104,9 @@ class selfReplyClass {
 
     #connect() {
         this.#disconnect();
-        this.#channel = document.getElementById('channel').value;
+        var channelEl = document.getElementById('channel');
+        this.#channel = channelEl.value;
+        this.#steamId = channelEl.selectedOptions[0]?.dataset.steamid || '';
         this.#client = this.#tmiClientFactory({
             options: {
                 debug: false,
@@ -150,6 +153,20 @@ class selfReplyClass {
         });
     }
 
+    stop() {
+        if (!this.#isEnable) return;
+        this.#isEnable = false;
+        this.#disconnect();
+        document.getElementById('channel').disabled = false;
+
+        document.getElementById(this.startButtonName).style.display = '';
+        document.getElementById(this.stopButtonName).style.display = 'none';
+    }
+
+    get isActive() {
+        return this.#isEnable;
+    }
+
     init() {
         if (this._invalid) return;
 
@@ -173,12 +190,7 @@ class selfReplyClass {
         });
 
         document.getElementById(this.stopButtonName).addEventListener('click', () => {
-            this.#isEnable = false;
-            this.#disconnect();
-            document.getElementById('channel').disabled = false;
-
-            document.getElementById(this.startButtonName).style.display = '';
-            document.getElementById(this.stopButtonName).style.display = 'none';
+            this.stop();
         });
     }
 }

@@ -31,8 +31,8 @@ function createMockTmiClient() {
 function setupDOM() {
     document.body.innerHTML = `
         <select id="channel">
-            <option value="shuteye_orange">蝦愛橘子</option>
-            <option value="marsantonymars">姬柊雪菜我老婆</option>
+            <option value="shuteye_orange" data-steamid="76561198003344359">蝦愛橘子</option>
+            <option value="marsantonymars" data-steamid="76561197999639100">姬柊雪菜我老婆</option>
         </select>
         <input id="commandReplyTemplate" value="目前遊戲：{game}" />
         <input id="gameName" value="" />
@@ -150,6 +150,41 @@ describe('selfReplyClass', () => {
         });
     });
 
+    describe('stop() 公開方法', () => {
+        it('stop() 停止自動回覆並斷開連線', () => {
+            const mockClient = createMockTmiClient();
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
+            instance.init();
+            document.getElementById('startReply').click();
+
+            instance.stop();
+
+            expect(mockClient.disconnect).toHaveBeenCalled();
+            expect(document.getElementById('startReply').style.display).toBe('');
+            expect(document.getElementById('stopReply').style.display).toBe('none');
+            expect(document.getElementById('channel').disabled).toBe(false);
+        });
+
+        it('stop() 在未啟動時呼叫不會報錯', () => {
+            const instance = createInstance({}, { tmiClientFactory: () => createMockTmiClient() });
+            instance.init();
+
+            expect(() => instance.stop()).not.toThrow();
+        });
+
+        it('isActive 在啟動後為 true，stop 後為 false', () => {
+            const mockClient = createMockTmiClient();
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
+            instance.init();
+
+            expect(instance.isActive).toBe(false);
+            document.getElementById('startReply').click();
+            expect(instance.isActive).toBe(true);
+            instance.stop();
+            expect(instance.isActive).toBe(false);
+        });
+    });
+
     describe('connect 與訊息處理', () => {
         it('點擊 startReply 時建立 tmi 連線', () => {
             const mockClient = createMockTmiClient();
@@ -197,6 +232,7 @@ describe('selfReplyClass', () => {
 
             await vi.waitFor(() => {
                 expect(mockFetch).toHaveBeenCalled();
+                expect(mockFetch.mock.calls[0][0]).toContain('steamid=76561198003344359');
             });
 
             await vi.waitFor(() => {
@@ -205,6 +241,32 @@ describe('selfReplyClass', () => {
                     '目前遊戲：Elden Ring',
                     tags
                 );
+            });
+        });
+
+        it('切換頻道後呼叫 Steam API 帶入對應 steamid', async () => {
+            const mockClient = createMockTmiClient();
+            const mockFetch = vi.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+                })
+            );
+            const instance = createInstance(
+                { getMessage: (game) => `目前遊戲：${game}`, commandName: '遊戲' },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+
+            document.getElementById('channel').value = 'marsantonymars';
+            document.getElementById('startReply').click();
+
+            const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
+            mockClient._emit('message', '#channel', tags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                expect(mockFetch).toHaveBeenCalled();
+                expect(mockFetch.mock.calls[0][0]).toContain('steamid=76561197999639100');
             });
         });
 

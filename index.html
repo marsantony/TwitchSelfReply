@@ -147,9 +147,26 @@
             box-shadow: inset 4px 4px 8px #a8abb1, inset -4px -4px 8px #fafbfd;
         }
 
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: 2px 2px 4px #b0b3b9, -2px -2px 4px #f5f6f8;
+        }
+
+        .btn:disabled:hover {
+            box-shadow: 2px 2px 4px #b0b3b9, -2px -2px 4px #f5f6f8;
+        }
+
         .btn-success { color: #2d7a4f; }
         .btn-primary { color: #3a6fb5; }
         .btn-danger  { color: #c0392b; }
+
+        .auth-hint {
+            font-size: 0.8rem;
+            color: #c0392b;
+            margin-bottom: 1rem;
+            display: none;
+        }
 
         /* ── Tutorial ── */
         details {
@@ -253,8 +270,8 @@
         <div class="form-group">
             <label for="channel">頻道</label>
             <select id="channel">
-                <option value="shuteye_orange">蝦愛橘子</option>
-                <option value="marsantonymars">姬柊雪菜我老婆</option>
+                <option value="shuteye_orange" data-steamid="76561198003344359">蝦愛橘子</option>
+                <option value="marsantonymars" data-steamid="76561197999639100">姬柊雪菜我老婆</option>
             </select>
         </div>
 
@@ -287,13 +304,14 @@
             </div>
         </details>
 
+        <p class="auth-hint" id="authHint">請先登入 Twitch 才能使用以下功能</p>
         <div class="btn-row">
-            <button type="button" id="immediatelyReplyMOD" class="btn btn-success">立即回覆並更新(MOD)</button>
+            <button type="button" id="immediatelyReplyMOD" class="btn btn-success" disabled>立即回覆並更新(MOD)</button>
 
-            <button type="button" id="startReplyMOD" class="btn btn-success">開始自動回覆並更新(MOD)</button>
+            <button type="button" id="startReplyMOD" class="btn btn-success" disabled>開始自動回覆並更新(MOD)</button>
             <button type="button" id="stopReplyMOD" class="btn btn-danger" style="display:none;">停止回覆(MOD)</button>
 
-            <button type="button" id="startReply" class="btn btn-primary">開始自動回覆</button>
+            <button type="button" id="startReply" class="btn btn-primary" disabled>開始自動回覆</button>
             <button type="button" id="stopReply" class="btn btn-danger" style="display:none;">停止回覆</button>
         </div>
 
@@ -325,9 +343,12 @@
     <script src="https://marsantony.github.io/shared/shared.js"></script>
     <script>
         var CLIENT_ID = '1qewxbrcvgrcpxqhqecxuitqwgjc2p';
+        var ACTION_BUTTON_IDS = ['immediatelyReplyMOD', 'startReplyMOD', 'startReply'];
 
         function updateAuthUI() {
-            if (TwitchAuth.isLoggedIn()) {
+            var loggedIn = TwitchAuth.isLoggedIn();
+
+            if (loggedIn) {
                 document.getElementById('authLoggedOut').style.display = 'none';
                 document.getElementById('authLoggedIn').style.display = '';
                 document.getElementById('authUsername').textContent = TwitchAuth.getUsername();
@@ -335,6 +356,12 @@
                 document.getElementById('authLoggedOut').style.display = '';
                 document.getElementById('authLoggedIn').style.display = 'none';
             }
+
+            // 根據登入狀態啟用/停用操作按鈕
+            ACTION_BUTTON_IDS.forEach(function (id) {
+                document.getElementById(id).disabled = !loggedIn;
+            });
+            document.getElementById('authHint').style.display = loggedIn ? 'none' : '';
         }
 
         document.getElementById('twitchLogin').addEventListener('click', function () {
@@ -342,24 +369,27 @@
         });
 
         document.getElementById('twitchLogout').addEventListener('click', function () {
+            // 登出前先停止所有進行中的自動回覆
+            replyInstance.stop();
+            replyMODInstance.stop();
+
             TwitchAuth.logout();
             updateAuthUI();
         });
 
-        updateAuthUI();
-
         document.getElementById('commandReplyTemplate').value = localStorage.getItem(STORAGE_COMMANDREPLYTEMPLATE) || '';
 
-        new selfReplyClass({
+        var replyInstance = new selfReplyClass({
             startButtonName: 'startReply',
             stopButtonName: 'stopReply',
             getMessage: function (currentGameName, otherMessage) {
                 var other = otherMessage ? ` 額外留言：${otherMessage}` : '';
                 return `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」${other}`;
             }
-        }).init();
+        });
+        replyInstance.init();
 
-        new selfReplyClass({
+        var replyMODInstance = new selfReplyClass({
             startButtonName: 'startReplyMOD',
             stopButtonName: 'stopReplyMOD',
             getMessage: function (currentGameName, otherMessage) {
@@ -368,7 +398,10 @@
             },
             immediatelyButtonName: 'immediatelyReplyMOD',
             commandName: '更新遊戲',
-        }).init();
+        });
+        replyMODInstance.init();
+
+        updateAuthUI();
     </script>
 </body>
 
