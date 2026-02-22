@@ -1,187 +1,402 @@
-﻿<!DOCTYPE html>
-<html>
+<!DOCTYPE html>
+<html lang="zh-Hant">
 
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
-
     <title>Twitch自動回覆</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://marsantony.github.io/shared/nav.css">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Nunito Sans', sans-serif;
+            background: linear-gradient(180deg, #dcdfe4 0%, #d4d7dd 30%, #cfd2d8 70%, #c9ccd3 100%);
+            background-attachment: fixed;
+            color: #5a5f6b;
+            line-height: 1.6;
+            padding-top: 56px;
+        }
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #3a3f4a;
+            margin-bottom: 2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #c0c3c9;
+        }
+
+        /* ── Form ── */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #3a3f4a;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-group label a {
+            font-weight: 400;
+            color: #6a6f7b;
+            text-decoration: none;
+            margin-left: 0.5rem;
+        }
+
+        .form-group label a:hover {
+            text-decoration: underline;
+        }
+
+        input[type="text"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: none;
+            border-radius: 12px;
+            background: #d4d7dd;
+            box-shadow: inset 3px 3px 6px #b0b3b9, inset -3px -3px 6px #f5f6f8;
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: #3a3f4a;
+            outline: none;
+            transition: box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus,
+        select:focus,
+        textarea:focus {
+            box-shadow: inset 4px 4px 8px #a8abb1, inset -4px -4px 8px #fafbfd;
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a5f6b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea {
+            resize: none;
+        }
+
+        /* ── Status ── */
+        .status-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .status-group label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #8a8f9a;
+        }
+
+        .status-group span {
+            font-size: 0.85rem;
+            color: #3a3f4a;
+            font-weight: 600;
+        }
+
+        /* ── Buttons ── */
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            margin: 1.5rem 0;
+        }
+
+        .btn {
+            padding: 0.6rem 1.25rem;
+            border: none;
+            border-radius: 12px;
+            background: #d4d7dd;
+            box-shadow: 4px 4px 8px #b0b3b9, -4px -4px 8px #f5f6f8;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            box-shadow: inset 3px 3px 6px #b0b3b9, inset -3px -3px 6px #f5f6f8;
+        }
+
+        .btn:active {
+            box-shadow: inset 4px 4px 8px #a8abb1, inset -4px -4px 8px #fafbfd;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: 2px 2px 4px #b0b3b9, -2px -2px 4px #f5f6f8;
+        }
+
+        .btn:disabled:hover {
+            box-shadow: 2px 2px 4px #b0b3b9, -2px -2px 4px #f5f6f8;
+        }
+
+        .btn-success { color: #2d7a4f; }
+        .btn-primary { color: #3a6fb5; }
+        .btn-danger  { color: #c0392b; }
+
+        .auth-hint {
+            font-size: 0.8rem;
+            color: #c0392b;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        /* ── Tutorial ── */
+        details {
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            background: #d4d7dd;
+            box-shadow: 4px 4px 8px #b0b3b9, -4px -4px 8px #f5f6f8;
+            overflow: hidden;
+        }
+
+        summary {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #3a3f4a;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        summary::-webkit-details-marker { display: none; }
+
+        summary::after {
+            content: '▸';
+            float: right;
+            transition: transform 0.2s;
+        }
+
+        details[open] summary::after {
+            transform: rotate(90deg);
+        }
+
+        details[open] summary {
+            border-bottom: 1px solid #c0c3c9;
+        }
+
+        .tutorial-body {
+            padding: 0.75rem 1.25rem;
+        }
+
+        .tutorial-body a {
+            display: block;
+            font-size: 0.85rem;
+            color: #3a6fb5;
+            text-decoration: none;
+            padding: 0.3rem 0;
+        }
+
+        .tutorial-body a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Auth ── */
+        .auth-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            background: #d4d7dd;
+            box-shadow: inset 3px 3px 6px #b0b3b9, inset -3px -3px 6px #f5f6f8;
+        }
+
+        .auth-section .auth-username {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #3a3f4a;
+            flex: 1;
+        }
+
+        .auth-section .btn {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
+            box-shadow: 3px 3px 6px #b0b3b9, -3px -3px 6px #f5f6f8;
+        }
+
+    </style>
 </head>
 
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="https://marsantony.github.io/">Mars Liu</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNavDropdown">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="./TwitchSelfReply">Twitch自動回覆(用自己的帳號)</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="./Twitch_AutoGameStatusUpdate">蝦愛橘子的!遊戲指令更新</a>
-                    </li>
 
-                </ul>
+    <div class="container">
+        <h1>Twitch 自動回覆</h1>
+
+        <div class="form-group">
+            <label for="channel">頻道</label>
+            <select id="channel">
+                <option value="shuteye_orange" data-steamid="76561198003344359">蝦愛橘子</option>
+                <option value="marsantonymars" data-steamid="76561197999639100">姬柊雪菜我老婆</option>
+                <option value="__custom__">自訂...</option>
+            </select>
+        </div>
+
+        <div id="customChannelFields" class="form-group" style="display:none;">
+            <label for="customChannel">頻道名稱（Twitch 帳號）</label>
+            <input type="text" id="customChannel" placeholder="例：twitchusername" />
+            <label for="customSteamId" style="margin-top:0.5rem;">Steam ID（17 位數字）</label>
+            <input type="text" id="customSteamId" placeholder="例：76561198000000000" />
+        </div>
+
+        <div id="authSection">
+            <div id="authLoggedOut" class="form-group">
+                <button type="button" id="twitchLogin" class="btn btn-primary">使用 Twitch 登入</button>
+            </div>
+            <div id="authLoggedIn" class="auth-section" style="display:none;">
+                <span class="auth-username" id="authUsername"></span>
+                <button type="button" id="twitchLogout" class="btn btn-danger">登出</button>
             </div>
         </div>
-    </nav>
 
+        <div class="form-group">
+            <label for="gameName">自訂遊戲名稱</label>
+            <input type="text" id="gameName" />
+        </div>
 
-    <label for="username">使用者帳號</label>
-    <input type="text" id="username" />
-    <br />
-    <label for="password">OAuth密碼</label>
-    <input type="password" id="password" />
-    <a href="https://twitchapps.com/tmi/" target="_blank">Twitch取得oath password</a>
-    <br />
+        <div class="form-group">
+            <label for="commandReplyTemplate">自動回覆 Template（遊戲名稱帶入 {game}）</label>
+            <input type="text" id="commandReplyTemplate" />
+        </div>
 
-    <!--<label for="azureFunctionKey">Azure Function Key</label>
-    <input type="text" id="azureFunctionKey" />
-    <br />-->
+        <p class="auth-hint" id="authHint">請先登入 Twitch 才能使用以下功能</p>
+        <div class="btn-row">
+            <button type="button" id="startReply" class="btn btn-primary" disabled>開始自動回覆</button>
+            <button type="button" id="stopReply" class="btn btn-danger" style="display:none;">停止回覆</button>
+        </div>
 
+        <div class="status-group">
+            <label>steam 抓到的目前遊戲名稱：</label>
+            <span id="currentSteamGameName"></span>
+        </div>
 
-    <label for="gameName">自訂遊戲名稱</label>
-    <input type="text" id="gameName" />
+        <div class="status-group">
+            <label>上一個 !遊戲 指令的遊戲名稱：</label>
+            <span id="currentCommandReplyGameName"></span>
+        </div>
 
-    <br />
-    <input type="button" id="autoReply" value="開始自動回覆" />
-
-    <input type="button" id="startReply" value="開始回覆" style="display:none;" />
-    <input type="button" id="stopReply" value="停止回覆" style="display:none;" />
-
-    <div>
-        <label for="currentSteamGameName">steam抓到的目前遊戲名稱：</label>
-        <span id="currentSteamGameName"></span>
-    </div>
-
-    <div>
-        <label for="currentCommandReplyGameName">目前遊戲指令的遊戲名稱：</label>
-        <span id="currentCommandReplyGameName"></span>
-    </div>
-
-    <div>回覆的LOG：</div>
-    <div id="LOG">
+        <div class="form-group">
+            <label for="log">回覆的 LOG</label>
+            <textarea id="log" rows="10" readonly></textarea>
+        </div>
 
     </div>
 
-    <!-- Option 1: Bootstrap Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ" crossorigin="anonymous"></script>
-    <script src="https://github.com/tmijs/tmi.js/releases/download/v1.8.5/tmi.min.js"></script>
+    <script src="https://marsantony.github.io/shared/twitch-auth.js"></script>
+    <script src="./js/tmi.min.js"></script>
+    <script src="./src/utils.js"></script>
+    <script src="./src/selfReplyClass.js"></script>
 
+    <script src="https://marsantony.github.io/shared/shared.js"></script>
     <script>
-        const LOCALSTORAGE_USERNAME = 'TwitchAutoReply_UserName';
-        const LOCALSTORAGE_PASSWORD = 'TwitchAutoReply_Password';
-        //const LOCALSTORAGE_AZUREFUNCTIONKEY = 'TwitchAutoReply_AzureFunctionKey';
+        var CLIENT_ID = 'iq44451ylnoywa6g8yal91e1ajsu1e';
 
-        //將預設值帶入
-        document.getElementById('username').value = localStorage.getItem(LOCALSTORAGE_USERNAME) || '';
-        document.getElementById('password').value = localStorage.getItem(LOCALSTORAGE_PASSWORD) || '';
-        //document.getElementById('azureFunctionKey').value = localStorage.getItem(LOCALSTORAGE_AZUREFUNCTIONKEY) || '';
+        function updateAuthUI() {
+            var loggedIn = TwitchAuth.isLoggedIn();
 
-        var currentGameName = '';
-        var replyGameName = '';
-        var isEnable = false;
-        document.getElementById('autoReply').addEventListener('click', (e) => {
+            if (loggedIn) {
+                document.getElementById('authLoggedOut').style.display = 'none';
+                document.getElementById('authLoggedIn').style.display = '';
+                document.getElementById('authUsername').textContent = TwitchAuth.getUsername();
+            } else {
+                document.getElementById('authLoggedOut').style.display = '';
+                document.getElementById('authLoggedIn').style.display = 'none';
+            }
 
-            const client = new tmi.Client({
-                options: {
-                    debug: false,
-                    skipMembership: true, // 不接收 JOIN/PART 訊息
-                    skipUpdatingEmotesets: true,
-                },
-                connection: {
-                    reconnect: true,
-                    secure: true
-                },
-                identity: {
-                    username: document.getElementById('username').value,            // [TODO]: input your Twitch username
-                    password: document.getElementById('password').value        // [TODO]: input the genereated oath password
-                    // 1. go to https://twitchapps.com/tmi/
-                    // 2. click "Connect"
-                    // 3. You will get a password beginning with "oath..."
-                    // 4. Copy the whole password and paste inside the 'genereated_oath_password'
-                },
-                channels: ['shuteye_orange'] // [TODO]: input the channel name you want to listen to
-            });
+            document.getElementById('startReply').disabled = !loggedIn;
+            document.getElementById('authHint').style.display = loggedIn ? 'none' : '';
+        }
 
-            //成功連接
-            client.connect().catch(console.error);
-
-            //將預設值寫入localStorage
-            localStorage.setItem(LOCALSTORAGE_USERNAME, document.getElementById('username').value);
-            localStorage.setItem(LOCALSTORAGE_PASSWORD, document.getElementById('password').value);
-            //localStorage.setItem(LOCALSTORAGE_AZUREFUNCTIONKEY, document.getElementById('azureFunctionKey').value);
-
-
-            client.on('message', (channel, tags, message, self) => {
-                //不知為啥streamelements的username小寫= =
-                if (tags.username.toLowerCase() === 'streamelements' && message.includes('遊戲名稱(Game Title)')) {
-                    replyGameName = /『(.+)』/gm.exec(message)[1].trim();
-                    document.getElementById('currentCommandReplyGameName').innerHTML = replyGameName;
-                }
-
-                if (!isEnable) return;
-
-                if (self || !message.startsWith('!')) return;
-
-                const args = message.slice(1).split(' ');
-                const command = args.shift().toLowerCase();
-
-                if (command === '遊戲') {
-                    //fetch(`https://getorangesteamstatus.azurewebsites.net/api/Get?code=${document.getElementById('azureFunctionKey').value}`)
-                    fetch(`https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetOrangeSteamStatus`)
-                        .then((response) => {
-                            console.log(response);
-                            return response.json();
-                        }).then((json) => {
-                            console.log(json);
-                            document.getElementById('currentSteamGameName').innerHTML = json['GameName'];
-                            //清空
-                            currentGameName = '';
-                            //自訂遊戲名稱優先權較高
-                            currentGameName = document.getElementById('gameName').value || json['GameName'];
-
-                            if (currentGameName && currentGameName !== replyGameName) {
-                                const replyMessage = `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」`;
-                                client.say(channel, replyMessage);
-                                //client.reply(channel, replyMessage, tags ); v1.9.0-pre.1
-
-                                var name = tags['display-name'] ? `${tags['display-name']}(${tags['username']})` : tags['username'];
-                                var timeStamp = new Date(tags['tmi-sent-ts'] * 1).toLocaleString('sv-SE');
-                                document.getElementById('LOG').innerHTML += `<div>${timeStamp} ${name}：${replyMessage}</div>`;
-                            }
-                        });
-                }
-            });
-
-            document.getElementById('autoReply').style.display = 'none';
-            document.getElementById('startReply').style.display = 'none';
-            document.getElementById('stopReply').style.display = '';
-
-            document.getElementById('startReply').click();
+        document.getElementById('twitchLogin').addEventListener('click', function () {
+            TwitchAuth.login(CLIENT_ID);
         });
 
-        document.getElementById('startReply').addEventListener('click', (e) => {
-            isEnable = true;
-
-            document.getElementById('autoReply').style.display = 'none';
-            document.getElementById('startReply').style.display = 'none';
-            document.getElementById('stopReply').style.display = '';
+        document.getElementById('twitchLogout').addEventListener('click', function () {
+            replyInstance.stop();
+            TwitchAuth.logout().then(function () {
+                updateAuthUI();
+            });
         });
 
-        document.getElementById('stopReply').addEventListener('click', (e) => {
-            isEnable = false;
+        document.getElementById('commandReplyTemplate').value = localStorage.getItem(STORAGE_COMMANDREPLYTEMPLATE) || '';
 
-            document.getElementById('autoReply').style.display = 'none';
-            document.getElementById('startReply').style.display = '';
-            document.getElementById('stopReply').style.display = 'none';
+        var channelEl = document.getElementById('channel');
+        var customFields = document.getElementById('customChannelFields');
+        var customChannelEl = document.getElementById('customChannel');
+        var customSteamIdEl = document.getElementById('customSteamId');
+
+        function toggleCustomFields() {
+            customFields.style.display = channelEl.value === '__custom__' ? '' : 'none';
+        }
+
+        var savedChannel = localStorage.getItem('TwitchAutoReply_Channel');
+        if (savedChannel) {
+            channelEl.value = savedChannel;
+            if (channelEl.value !== savedChannel) {
+                channelEl.value = channelEl.options[0].value;
+            }
+        }
+        customChannelEl.value = localStorage.getItem('TwitchAutoReply_CustomChannel') || '';
+        customSteamIdEl.value = localStorage.getItem('TwitchAutoReply_CustomSteamId') || '';
+        toggleCustomFields();
+
+        channelEl.addEventListener('change', function () {
+            localStorage.setItem('TwitchAutoReply_Channel', channelEl.value);
+            toggleCustomFields();
+        });
+        customChannelEl.addEventListener('input', function () {
+            localStorage.setItem('TwitchAutoReply_CustomChannel', customChannelEl.value);
+        });
+        customSteamIdEl.addEventListener('input', function () {
+            localStorage.setItem('TwitchAutoReply_CustomSteamId', customSteamIdEl.value);
+        });
+
+        var replyInstance = new selfReplyClass({
+            startButtonName: 'startReply',
+            stopButtonName: 'stopReply',
+            getMessage: function (currentGameName, otherMessage) {
+                var template = document.getElementById('commandReplyTemplate').value;
+                if (template) {
+                    return replaceGamePlaceholder(template, currentGameName);
+                }
+                var other = otherMessage ? ` 額外留言：${otherMessage}` : '';
+                return `MrDestructoid 自動回覆：「目前遊戲名稱：${currentGameName}」${other}`;
+            }
+        });
+        replyInstance.init();
+
+        TwitchAuth.tryRestore().then(function () {
+            updateAuthUI();
+        }).catch(function () {
+            updateAuthUI();
         });
     </script>
 </body>
