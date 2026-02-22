@@ -256,7 +256,15 @@
             <select id="channel">
                 <option value="shuteye_orange" data-steamid="76561198003344359">蝦愛橘子</option>
                 <option value="marsantonymars" data-steamid="76561197999639100">姬柊雪菜我老婆</option>
+                <option value="__custom__">自訂...</option>
             </select>
+        </div>
+
+        <div id="customChannelFields" class="form-group" style="display:none;">
+            <label for="customChannel">頻道名稱（Twitch 帳號）</label>
+            <input type="text" id="customChannel" placeholder="例：twitchusername" />
+            <label for="customSteamId" style="margin-top:0.5rem;">Steam ID（17 位數字）</label>
+            <input type="text" id="customSteamId" placeholder="例：76561198000000000" />
         </div>
 
         <div id="authSection">
@@ -339,6 +347,37 @@
         });
 
         document.getElementById('commandReplyTemplate').value = localStorage.getItem(STORAGE_COMMANDREPLYTEMPLATE) || '';
+
+        var channelEl = document.getElementById('channel');
+        var customFields = document.getElementById('customChannelFields');
+        var customChannelEl = document.getElementById('customChannel');
+        var customSteamIdEl = document.getElementById('customSteamId');
+
+        function toggleCustomFields() {
+            customFields.style.display = channelEl.value === '__custom__' ? '' : 'none';
+        }
+
+        var savedChannel = localStorage.getItem('TwitchAutoReply_Channel');
+        if (savedChannel) {
+            channelEl.value = savedChannel;
+            if (channelEl.value !== savedChannel) {
+                channelEl.value = channelEl.options[0].value;
+            }
+        }
+        customChannelEl.value = localStorage.getItem('TwitchAutoReply_CustomChannel') || '';
+        customSteamIdEl.value = localStorage.getItem('TwitchAutoReply_CustomSteamId') || '';
+        toggleCustomFields();
+
+        channelEl.addEventListener('change', function () {
+            localStorage.setItem('TwitchAutoReply_Channel', channelEl.value);
+            toggleCustomFields();
+        });
+        customChannelEl.addEventListener('input', function () {
+            localStorage.setItem('TwitchAutoReply_CustomChannel', customChannelEl.value);
+        });
+        customSteamIdEl.addEventListener('input', function () {
+            localStorage.setItem('TwitchAutoReply_CustomSteamId', customSteamIdEl.value);
+        });
 
         var replyInstance = new selfReplyClass({
             startButtonName: 'startReply',

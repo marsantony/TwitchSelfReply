@@ -81,8 +81,13 @@ class selfReplyClass {
     #connect() {
         this.#disconnect();
         var channelEl = document.getElementById('channel');
-        this.#channel = channelEl.value;
-        this.#steamId = channelEl.selectedOptions[0]?.dataset.steamid || '';
+        if (channelEl.value === '__custom__') {
+            this.#channel = (document.getElementById('customChannel')?.value || '').trim();
+            this.#steamId = (document.getElementById('customSteamId')?.value || '').trim();
+        } else {
+            this.#channel = channelEl.value;
+            this.#steamId = channelEl.selectedOptions[0]?.dataset.steamid || '';
+        }
         this.#client = this.#tmiClientFactory({
             options: {
                 debug: false,
