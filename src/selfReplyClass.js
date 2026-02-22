@@ -1,4 +1,4 @@
-/* global addLog, formatUserName, formatTimestamp, shouldReply, tmi */
+/* global addLog, formatUserName, formatTimestamp, shouldReply, tmi, TwitchAuth */
 
 const STORAGE_COMMANDREPLYTEMPLATE = 'TwitchAutoReply_CommandReplyTemplate';
 
@@ -94,8 +94,8 @@ class selfReplyClass {
                 secure: true
             },
             identity: {
-                username: sessionStorage.getItem('Twitch_OAuthUsername') || '',
-                password: sessionStorage.getItem('Twitch_OAuthToken') || ''
+                username: TwitchAuth.getUsername(),
+                password: TwitchAuth.getToken()
             },
             channels: [this.#channel]
         });

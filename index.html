@@ -333,8 +333,9 @@
 
         document.getElementById('twitchLogout').addEventListener('click', function () {
             replyInstance.stop();
-            TwitchAuth.logout();
-            updateAuthUI();
+            TwitchAuth.logout().then(function () {
+                updateAuthUI();
+            });
         });
 
         document.getElementById('commandReplyTemplate').value = localStorage.getItem(STORAGE_COMMANDREPLYTEMPLATE) || '';
@@ -353,7 +354,11 @@
         });
         replyInstance.init();
 
-        updateAuthUI();
+        TwitchAuth.tryRestore().then(function () {
+            updateAuthUI();
+        }).catch(function () {
+            updateAuthUI();
+        });
     </script>
 </body>
 

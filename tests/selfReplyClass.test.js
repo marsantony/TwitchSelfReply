@@ -7,6 +7,10 @@ globalThis.addLog = utils.addLog;
 globalThis.formatUserName = utils.formatUserName;
 globalThis.formatTimestamp = utils.formatTimestamp;
 globalThis.shouldReply = utils.shouldReply;
+globalThis.TwitchAuth = {
+    getToken: () => sessionStorage.getItem('Twitch_OAuthToken') || '',
+    getUsername: () => sessionStorage.getItem('Twitch_OAuthUsername') || '',
+};
 
 function createMockTmiClient() {
     const handlers = {};
@@ -446,7 +450,7 @@ describe('selfReplyClass', () => {
     });
 
     describe('OAuth 認證', () => {
-        it('連線時使用 sessionStorage 中的 token 和 username', () => {
+        it('連線時透過 TwitchAuth API 取得 token 和 username', () => {
             const mockClient = createMockTmiClient();
             const factory = vi.fn(() => mockClient);
             const instance = createInstance({}, { tmiClientFactory: factory });
