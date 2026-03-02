@@ -14,7 +14,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: marsantony/marsantony.github.io
-          path: ../marsantony.github.io
+          path: marsantony.github.io
+      - name: Symlink sibling repo for tests
+        run: ln -s $GITHUB_WORKSPACE/marsantony.github.io ../marsantony.github.io
       - uses: actions/setup-node@v4
         with:
           node-version: 20
