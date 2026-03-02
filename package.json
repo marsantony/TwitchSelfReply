@@ -4,7 +4,8 @@
   "description": "Twitch 聊天室自動回覆工具 ── 使用自己的帳號，自動回覆 `!遊戲` 指令並更新遊戲狀態。",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
