@@ -237,7 +237,7 @@ describe('selfReplyClass', () => {
 
             await vi.waitFor(() => {
                 expect(mockClient.reply).toHaveBeenCalledWith(
-                    '#channel',
+                    'shuteye_orange',
                     '目前遊戲：Elden Ring',
                     tags
                 );

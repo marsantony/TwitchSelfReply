@@ -4,7 +4,6 @@ const STORAGE_COMMANDREPLYTEMPLATE = 'TwitchAutoReply_CommandReplyTemplate';
 
 class selfReplyClass {
     #isEnable = false;
-    #currentGameName = '';
     #replyGameName = '';
     #channel = '';
     #steamId = '';
@@ -33,10 +32,9 @@ class selfReplyClass {
         const myUserId = this.#client.globaluserstate['user-id'];
         const myNames = [this.#client.username, this.#client.globaluserstate['display-name']];
 
-        const args = message.split(' ');
         if (tags['reply-parent-user-id'] == myUserId ||
             tags['reply-thread-parent-user-id'] == myUserId ||
-            myNames.find((name) => args.indexOf(`@${name}`) > -1)) {
+            message.split(' ').some((word) => word.startsWith('@') && myNames.includes(word.slice(1)))) {
             const name = formatUserName(tags);
             const timeStamp = formatTimestamp(tags['tmi-sent-ts']);
             const logEl = document.getElementById('log');
@@ -44,7 +42,7 @@ class selfReplyClass {
         }
     }
 
-    #handleSteamReply(channel, tags, otherMessage) {
+    #handleSteamReply(tags, otherMessage) {
         this.#fetchFn('https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetSteamStatus?steamid=' + encodeURIComponent(this.#steamId))
             .then((response) => {
                 if (!response.ok) {
@@ -54,12 +52,12 @@ class selfReplyClass {
             })
             .then((json) => {
                 document.getElementById('currentSteamGameName').textContent = json['GameName'];
-                this.#currentGameName = document.getElementById('gameName').value || json['GameName'];
+                const currentGameName = document.getElementById('gameName').value || json['GameName'];
 
-                if (shouldReply(this.#currentGameName, this.#replyGameName)) {
-                    const replyMessage = this.getMessage(this.#currentGameName, otherMessage);
+                if (shouldReply(currentGameName, this.#replyGameName)) {
+                    const replyMessage = this.getMessage(currentGameName, otherMessage);
                     const logEl = document.getElementById('log');
-                    this.#client.reply(channel, replyMessage, tags);
+                    this.#client.reply(this.#channel, replyMessage, tags);
                     const name = formatUserName(tags);
                     const timeStamp = formatTimestamp(tags['tmi-sent-ts']);
                     addLog(logEl, `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}`);
@@ -112,11 +110,7 @@ class selfReplyClass {
                 this.#replyGameName = message;
                 document.getElementById('currentCommandReplyGameName').textContent = this.#replyGameName;
             }
-        });
-    }
 
-    #bindMessageHandler() {
-        this.#client.on('message', (channel, tags, message, self) => {
             this.#logTalkingAboutMe(tags, message);
             if (!this.#isEnable) return;
             if (self || !message.startsWith('!')) return;
@@ -126,7 +120,7 @@ class selfReplyClass {
             const otherMessage = args.join(' ');
 
             if (command === this.commandName) {
-                this.#handleSteamReply(channel, tags, otherMessage);
+                this.#handleSteamReply(tags, otherMessage);
             }
         });
     }
@@ -150,7 +144,6 @@ class selfReplyClass {
 
         document.getElementById(this.startButtonName).addEventListener('click', () => {
             this.#connect();
-            this.#bindMessageHandler();
 
             this.#isEnable = true;
             document.getElementById('channel').disabled = true;

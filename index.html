@@ -318,6 +318,9 @@
     <script src="https://marsantony.github.io/shared/shared.js"></script>
     <script>
         var CLIENT_ID = 'iq44451ylnoywa6g8yal91e1ajsu1e';
+        var STORAGE_CHANNEL = 'TwitchAutoReply_Channel';
+        var STORAGE_CUSTOMCHANNEL = 'TwitchAutoReply_CustomChannel';
+        var STORAGE_CUSTOMSTEAMID = 'TwitchAutoReply_CustomSteamId';
 
         function updateAuthUI() {
             var loggedIn = TwitchAuth.isLoggedIn();
@@ -357,26 +360,26 @@
             customFields.style.display = channelEl.value === '__custom__' ? '' : 'none';
         }
 
-        var savedChannel = localStorage.getItem('TwitchAutoReply_Channel');
+        var savedChannel = localStorage.getItem(STORAGE_CHANNEL);
         if (savedChannel) {
             channelEl.value = savedChannel;
             if (channelEl.value !== savedChannel) {
                 channelEl.value = channelEl.options[0].value;
             }
         }
-        customChannelEl.value = localStorage.getItem('TwitchAutoReply_CustomChannel') || '';
-        customSteamIdEl.value = localStorage.getItem('TwitchAutoReply_CustomSteamId') || '';
+        customChannelEl.value = localStorage.getItem(STORAGE_CUSTOMCHANNEL) || '';
+        customSteamIdEl.value = localStorage.getItem(STORAGE_CUSTOMSTEAMID) || '';
         toggleCustomFields();
 
         channelEl.addEventListener('change', function () {
-            localStorage.setItem('TwitchAutoReply_Channel', channelEl.value);
+            localStorage.setItem(STORAGE_CHANNEL, channelEl.value);
             toggleCustomFields();
         });
         customChannelEl.addEventListener('input', function () {
-            localStorage.setItem('TwitchAutoReply_CustomChannel', customChannelEl.value);
+            localStorage.setItem(STORAGE_CUSTOMCHANNEL, customChannelEl.value);
         });
         customSteamIdEl.addEventListener('input', function () {
-            localStorage.setItem('TwitchAutoReply_CustomSteamId', customSteamIdEl.value);
+            localStorage.setItem(STORAGE_CUSTOMSTEAMID, customSteamIdEl.value);
         });
 
         var replyInstance = new selfReplyClass({
