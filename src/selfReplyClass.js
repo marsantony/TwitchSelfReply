@@ -78,7 +78,7 @@ class selfReplyClass {
 
     #connect() {
         this.#disconnect();
-        var channelEl = document.getElementById('channel');
+        const channelEl = document.getElementById('channel');
         if (channelEl.value === '__custom__') {
             this.#channel = (document.getElementById('customChannel')?.value || '').trim();
             this.#steamId = (document.getElementById('customSteamId')?.value || '').trim();
