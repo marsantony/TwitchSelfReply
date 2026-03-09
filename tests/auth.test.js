@@ -87,7 +87,7 @@ describe('TwitchAuth (Auth Code + BFF)', () => {
             // Check storage
             expect(sessionStorage.getItem('Twitch_OAuthToken')).toBe('new-access-token');
             expect(sessionStorage.getItem('Twitch_OAuthUsername')).toBe('testuser');
-            expect(localStorage.getItem('Twitch_OAuthSessionId')).toBe('session-id-xyz');
+            expect(sessionStorage.getItem('Twitch_OAuthSessionId')).toBe('session-id-xyz');
             expect(localStorage.getItem('Twitch_OAuthUsername')).toBe('testuser');
 
             // State and returnUrl should be cleaned up
@@ -99,6 +99,42 @@ describe('TwitchAuth (Auth Code + BFF)', () => {
             const [url, opts] = mockFetch.mock.calls[0];
             expect(url).toContain('/token');
             expect(JSON.parse(opts.body).code).toBe('auth-code-123');
+
+            vi.unstubAllGlobals();
+        });
+
+        it('rememberMe 時 session_id 存入 localStorage', async () => {
+            const state = 'teststatevalue';
+            sessionStorage.setItem('Twitch_OAuthState', state);
+            sessionStorage.setItem('Twitch_OAuthRemember', '1');
+            sessionStorage.setItem('Twitch_OAuthReturnUrl', 'https://example.com/app');
+
+            Object.defineProperty(window, 'location', {
+                writable: true,
+                value: {
+                    ...window.location,
+                    search: '?code=auth-code-123&state=' + state,
+                    pathname: '/auth/',
+                },
+            });
+
+            const mockFetch = vi.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({
+                        access_token: 'new-access-token',
+                        session_id: 'session-id-xyz',
+                        username: 'testuser',
+                        expires_in: 14400,
+                    }),
+                })
+            );
+            vi.stubGlobal('fetch', mockFetch);
+
+            await TwitchAuth.handleCallback();
+
+            expect(localStorage.getItem('Twitch_OAuthSessionId')).toBe('session-id-xyz');
+            expect(sessionStorage.getItem('Twitch_OAuthSessionId')).toBeNull();
 
             vi.unstubAllGlobals();
         });
