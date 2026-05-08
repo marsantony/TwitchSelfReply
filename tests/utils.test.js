@@ -1,14 +1,28 @@
-import { describe, it, expect } from 'vitest';
-import { addLog, formatUserName, formatTimestamp, shouldReply, replaceGamePlaceholder } from '../src/utils.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+    addLog, formatUserName, formatTimestamp, shouldReply, replaceGamePlaceholder,
+    getOverrideWarningText, getTemplateWarningText, translateIrcError
+} from '../src/utils.js';
+
+function setupDOM() {
+    document.body.innerHTML = `<textarea id="log"></textarea>`;
+}
 
 describe('addLog', () => {
-    it('新訊息插入 textarea 最前面', () => {
-        const el = { value: '' };
-        addLog(el, '第一條');
-        expect(el.value).toBe('第一條\r\n');
+    beforeEach(setupDOM);
 
-        addLog(el, '第二條');
-        expect(el.value).toBe('第二條\r\n第一條\r\n');
+    it('新訊息插入 textarea 最前面', () => {
+        // jsdom 把 \r\n 正規化成 \n（符合 HTML spec）
+        addLog('第一條');
+        expect(document.getElementById('log').value).toBe('第一條\n');
+
+        addLog('第二條');
+        expect(document.getElementById('log').value).toBe('第二條\n第一條\n');
+    });
+
+    it('沒 textarea 時不會炸', () => {
+        document.body.innerHTML = '';
+        expect(() => addLog('安全')).not.toThrow();
     });
 });
 
@@ -76,5 +90,56 @@ describe('replaceGamePlaceholder', () => {
     it('只替換第一個 {game}', () => {
         expect(replaceGamePlaceholder('{game} and {game}', 'X'))
             .toBe('X and {game}');
+    });
+});
+
+describe('getOverrideWarningText', () => {
+    it('customName 有值時回傳警告字串', () => {
+        expect(getOverrideWarningText('Sura Demo')).toContain('已覆寫 Steam 結果');
+        expect(getOverrideWarningText('Sura Demo')).toContain('「Sura Demo」');
+    });
+
+    it('customName 為空時回傳空字串', () => {
+        expect(getOverrideWarningText('')).toBe('');
+    });
+});
+
+describe('getTemplateWarningText', () => {
+    it('template 不含 {game} 時回傳警告', () => {
+        expect(getTemplateWarningText('硬寫不用佔位符')).toContain('Template 缺少 {game}');
+    });
+
+    it('template 含 {game} 時回傳空字串', () => {
+        expect(getTemplateWarningText('遊戲：{game}')).toBe('');
+    });
+
+    it('template 為空時回傳空字串（empty 不算 will-break）', () => {
+        expect(getTemplateWarningText('')).toBe('');
+    });
+});
+
+describe('translateIrcError', () => {
+    it('msg_duplicate 翻譯成重複訊息', () => {
+        expect(translateIrcError('msg_duplicate')).toContain('重複訊息');
+    });
+
+    it('msg_ratelimit 翻譯成送話過快', () => {
+        expect(translateIrcError('msg_ratelimit')).toContain('送話過快');
+    });
+
+    it('包含子字串也會匹配', () => {
+        expect(translateIrcError('Error: msg_timedout occurred')).toContain('timeout');
+    });
+
+    it('未知錯誤回傳空字串', () => {
+        expect(translateIrcError('something else')).toBe('');
+    });
+
+    it('Error 物件也能轉', () => {
+        expect(translateIrcError(new Error('msg_banned'))).toContain('封鎖');
+    });
+
+    it('No response from Twitch 翻譯成 IRC 沒回應', () => {
+        expect(translateIrcError('No response from Twitch')).toContain('IRC 沒回應');
     });
 });

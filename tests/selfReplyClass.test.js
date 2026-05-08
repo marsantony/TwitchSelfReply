@@ -7,21 +7,28 @@ globalThis.addLog = utils.addLog;
 globalThis.formatUserName = utils.formatUserName;
 globalThis.formatTimestamp = utils.formatTimestamp;
 globalThis.shouldReply = utils.shouldReply;
+globalThis.getOverrideWarningText = utils.getOverrideWarningText;
+globalThis.getTemplateWarningText = utils.getTemplateWarningText;
+globalThis.translateIrcError = utils.translateIrcError;
 globalThis.TwitchAuth = {
     getToken: () => sessionStorage.getItem('Twitch_OAuthToken') || '',
     getUsername: () => sessionStorage.getItem('Twitch_OAuthUsername') || '',
 };
 
-function createMockTmiClient() {
+function createMockTmiClient(opts = {}) {
     const handlers = {};
     return {
-        connect: vi.fn(() => Promise.resolve()),
+        connect: opts.connectFails
+            ? vi.fn(() => Promise.reject(opts.connectFails))
+            : vi.fn(() => Promise.resolve()),
         disconnect: vi.fn(() => Promise.resolve()),
         on: vi.fn((event, handler) => {
             if (!handlers[event]) handlers[event] = [];
             handlers[event].push(handler);
         }),
-        reply: vi.fn(),
+        reply: opts.replyFails
+            ? vi.fn(() => Promise.reject(opts.replyFails))
+            : vi.fn(() => Promise.resolve()),
         username: 'testuser',
         globaluserstate: { 'user-id': '12345', 'display-name': 'TestUser' },
         _handlers: handlers,
@@ -439,7 +446,206 @@ describe('selfReplyClass', () => {
             };
             mockClient._emit('message', '#channel', tags, '路人訊息', false);
 
-            expect(document.getElementById('log').value).toBe('');
+            // 路人訊息本身不該被 logTalkingAboutMe 記入；其他事件（▶ 開始 / 連線）允許存在
+            expect(document.getElementById('log').value).not.toContain('路人訊息');
+        });
+    });
+
+    describe('chat-flow log（Phase 2）', () => {
+        it('點擊開始自動回覆時 log 顯示「▶ 開始自動回覆」', () => {
+            const mockClient = createMockTmiClient();
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
+            instance.init();
+            document.getElementById('startReply').click();
+
+            expect(document.getElementById('log').value).toContain('▶ 開始自動回覆');
+        });
+
+        it('停止後 log 顯示「■ 停止自動回覆」', () => {
+            const mockClient = createMockTmiClient();
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
+            instance.init();
+            document.getElementById('startReply').click();
+            instance.stop();
+
+            expect(document.getElementById('log').value).toContain('■ 停止自動回覆');
+        });
+
+        it('成功連線時 log 顯示「▶ 已連線到頻道：xxx」', async () => {
+            const mockClient = createMockTmiClient();
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
+            instance.init();
+            document.getElementById('startReply').click();
+
+            await vi.waitFor(() => {
+                expect(document.getElementById('log').value).toContain('▶ 已連線到頻道：shuteye_orange');
+            });
+        });
+
+        it('連線失敗時 log 顯示 token 過期提示', async () => {
+            const mockClient = createMockTmiClient({ connectFails: 'Login authentication failed' });
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient });
+            instance.init();
+            document.getElementById('startReply').click();
+
+            await vi.waitFor(() => {
+                const logValue = document.getElementById('log').value;
+                expect(logValue).toContain('✗ Twitch IRC 連線失敗');
+                expect(logValue).toContain('token 過期');
+            });
+        });
+
+        it('收到 !遊戲 + customName 有值時 log 顯示覆寫提醒', async () => {
+            const mockClient = createMockTmiClient();
+            const mockFetch = vi.fn(() => Promise.resolve({
+                ok: true, json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+            }));
+            const instance = createInstance(
+                { getMessage: (g) => `目前：${g}` },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+            document.getElementById('gameName').value = '蓋掉';
+            document.getElementById('startReply').click();
+
+            const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
+            mockClient._emit('message', '#channel', tags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                const logValue = document.getElementById('log').value;
+                expect(logValue).toContain('已覆寫 Steam 結果');
+                expect(logValue).toContain('「蓋掉」');
+            });
+        });
+
+        it('收到 !遊戲 + Template 缺 {game} 時 log 顯示警告', async () => {
+            const mockClient = createMockTmiClient();
+            const mockFetch = vi.fn(() => Promise.resolve({
+                ok: true, json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+            }));
+            const instance = createInstance(
+                { getMessage: (g) => `目前：${g}` },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+            document.getElementById('commandReplyTemplate').value = '硬寫不用佔位符';
+            document.getElementById('startReply').click();
+
+            const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
+            mockClient._emit('message', '#channel', tags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                expect(document.getElementById('log').value).toContain('Template 缺少 {game}');
+            });
+        });
+
+        it('reply 成功送出後 log 顯示 ✓ 已回覆', async () => {
+            const mockClient = createMockTmiClient();
+            const mockFetch = vi.fn(() => Promise.resolve({
+                ok: true, json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+            }));
+            const instance = createInstance(
+                { getMessage: (g) => `目前：${g}` },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+            document.getElementById('startReply').click();
+
+            const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
+            mockClient._emit('message', '#channel', tags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                const logValue = document.getElementById('log').value;
+                expect(logValue).toContain('✓ 已回覆：目前：Elden Ring');
+            });
+        });
+
+        it('reply 失敗（msg_duplicate）log 顯示 ✗ 送出失敗 + 重複訊息提示', async () => {
+            const mockClient = createMockTmiClient({ replyFails: 'msg_duplicate' });
+            const mockFetch = vi.fn(() => Promise.resolve({
+                ok: true, json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+            }));
+            const instance = createInstance(
+                { getMessage: (g) => `目前：${g}` },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+            document.getElementById('startReply').click();
+
+            const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
+            mockClient._emit('message', '#channel', tags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                const logValue = document.getElementById('log').value;
+                expect(logValue).toContain('✗ 送出失敗');
+                expect(logValue).toContain('msg_duplicate');
+                expect(logValue).toContain('重複訊息');
+            });
+        });
+
+        it('shouldReply 為 false（reply 已含當前遊戲）時 log 顯示 ↪ 跳過', async () => {
+            const mockClient = createMockTmiClient();
+            const mockFetch = vi.fn(() => Promise.resolve({
+                ok: true, json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+            }));
+            const instance = createInstance(
+                { getMessage: (g) => `目前：${g}` },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+            document.getElementById('startReply').click();
+
+            // 先讓 SE 訊息進來，更新 #replyGameName
+            mockClient._emit('message', '#channel', { username: 'streamelements' },
+                '目前遊戲名稱：Elden Ring', false);
+
+            const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
+            mockClient._emit('message', '#channel', tags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                const logValue = document.getElementById('log').value;
+                expect(logValue).toContain('↪ 跳過');
+                expect(logValue).toContain('「Elden Ring」');
+            });
+        });
+
+        it('Steam API 失敗時 log 顯示 ✗ 開頭', async () => {
+            const mockClient = createMockTmiClient();
+            const mockFetch = vi.fn(() => Promise.resolve({
+                ok: false, status: 500, statusText: 'Internal Server Error',
+            }));
+            const instance = createInstance({}, { tmiClientFactory: () => mockClient, fetchFn: mockFetch });
+            instance.init();
+            document.getElementById('startReply').click();
+
+            const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
+            mockClient._emit('message', '#channel', tags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                expect(document.getElementById('log').value).toContain('✗ Steam API 請求失敗');
+            });
+        });
+
+        it('log 不含 OAuth token 字串', async () => {
+            sessionStorage.setItem('Twitch_OAuthToken', 'super-secret-token-abc123');
+            const mockClient = createMockTmiClient();
+            const mockFetch = vi.fn(() => Promise.resolve({
+                ok: true, json: () => Promise.resolve({ GameName: 'Elden Ring' }),
+            }));
+            const instance = createInstance(
+                { getMessage: (g) => `目前：${g}` },
+                { tmiClientFactory: () => mockClient, fetchFn: mockFetch }
+            );
+            instance.init();
+            document.getElementById('startReply').click();
+
+            const tags = { username: 'viewer1', 'display-name': '觀眾', 'tmi-sent-ts': '1700000000000' };
+            mockClient._emit('message', '#channel', tags, '!遊戲', false);
+
+            await vi.waitFor(() => {
+                expect(document.getElementById('log').value).toContain('✓ 已回覆');
+            });
+            expect(document.getElementById('log').value).not.toContain('super-secret-token-abc123');
         });
     });
 

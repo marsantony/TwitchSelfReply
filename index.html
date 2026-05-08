@@ -287,6 +287,69 @@
             box-shadow: var(--neu-raised-sm);
         }
 
+        /* ── §10 提示與警告層級（philosophy 對齊）── */
+        /* 共用 etched 基底，警告不可使用 inset/raised */
+        .form-warning,
+        .form-warning-strong {
+            display: block;
+            margin-top: 0.55rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            letter-spacing: 0.02em;
+            text-shadow:
+                1px 1px 0 rgba(255, 255, 255, 0.6),
+                -1px -1px 1px rgba(0, 0, 0, 0.08);
+        }
+
+        .form-warning:not(:empty)::before,
+        .form-warning-strong:not(:empty)::before {
+            content: "⚠ ";
+            color: var(--accent);
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-shadow: none;
+            margin-right: 0.15rem;
+        }
+
+        .form-warning:empty,
+        .form-warning-strong:empty {
+            display: none;
+        }
+
+        .form-warning {
+            padding: 0.1rem 0 0.1rem 0.85rem;
+            border-left: 2px solid var(--accent);
+        }
+
+        .form-warning-strong {
+            padding: 0.15rem 0 0.15rem 0.95rem;
+            border-left: 3px solid var(--accent);
+        }
+
+        /* ── §11 系統狀態讀數 ── */
+        .readout {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border-radius: 12px;
+            background: var(--bg);
+            box-shadow: var(--neu-pressed);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+            word-break: break-all;
+            min-height: 2.5em;
+        }
+
+        .readout-empty {
+            color: var(--text-muted);
+            font-family: 'Inter', sans-serif;
+            font-style: italic;
+        }
+
     </style>
 </head>
 
@@ -324,11 +387,13 @@
         <div class="form-group">
             <label for="gameName">自訂遊戲名稱</label>
             <input type="text" id="gameName" />
+            <span id="gameNameOverrideWarning" class="form-warning"></span>
         </div>
 
         <div class="form-group">
             <label for="commandReplyTemplate">自動回覆 Template（遊戲名稱帶入 {game}）</label>
             <input type="text" id="commandReplyTemplate" />
+            <span id="templateWarning" class="form-warning-strong"></span>
         </div>
 
         <p class="auth-hint" id="authHint">請先登入 Twitch 才能使用以下功能</p>
@@ -345,6 +410,11 @@
         <div class="status-group">
             <label>上一個 !遊戲 指令的遊戲名稱：</label>
             <span id="currentCommandReplyGameName"></span>
+        </div>
+
+        <div class="form-group">
+            <label>!遊戲 預覽</label>
+            <div id="replyPreview" class="readout readout-empty">（尚未取得遊戲名稱）</div>
         </div>
 
         <div class="form-group">
@@ -442,6 +512,53 @@
             }
         });
         replyInstance.init();
+
+        // ── 警告 + 預覽 渲染 ──
+        const gameNameInput = document.getElementById('gameName');
+        const templateInput = document.getElementById('commandReplyTemplate');
+        const overrideWarningEl = document.getElementById('gameNameOverrideWarning');
+        const templateWarningEl = document.getElementById('templateWarning');
+        const previewEl = document.getElementById('replyPreview');
+        const steamNameEl = document.getElementById('currentSteamGameName');
+
+        function updateOverrideWarning() {
+            overrideWarningEl.textContent = getOverrideWarningText(gameNameInput.value);
+        }
+        function updateTemplateWarning() {
+            templateWarningEl.textContent = getTemplateWarningText(templateInput.value);
+        }
+        function updateReplyPreview() {
+            const customName = gameNameInput.value;
+            const lastSteamGameName = steamNameEl.textContent;
+            const effectiveName = customName || lastSteamGameName;
+            if (!effectiveName) {
+                previewEl.textContent = '（尚未取得遊戲名稱）';
+                previewEl.classList.add('readout-empty');
+                return;
+            }
+            previewEl.classList.remove('readout-empty');
+            // 直接呼叫 replyInstance.getMessage 確保預覽 = 實際送到聊天室的訊息
+            previewEl.textContent = replyInstance.getMessage(effectiveName, '');
+        }
+
+        gameNameInput.addEventListener('input', () => {
+            updateOverrideWarning();
+            updateReplyPreview();
+        });
+        templateInput.addEventListener('input', () => {
+            updateTemplateWarning();
+            updateReplyPreview();
+        });
+
+        // Steam 抓到新遊戲時自動刷新預覽
+        new MutationObserver(updateReplyPreview).observe(steamNameEl, {
+            childList: true, characterData: true
+        });
+
+        // 還原欄位後初次渲染
+        updateOverrideWarning();
+        updateTemplateWarning();
+        updateReplyPreview();
 
         TwitchAuth.tryRestore().then(() => updateAuthUI()).catch(() => updateAuthUI());
     </script>

@@ -1,4 +1,6 @@
-/* global addLog, formatUserName, formatTimestamp, shouldReply, tmi, TwitchAuth */
+/* global addLog, formatUserName, formatTimestamp, shouldReply,
+          getOverrideWarningText, getTemplateWarningText, translateIrcError,
+          tmi, TwitchAuth */
 
 const STORAGE_COMMANDREPLYTEMPLATE = 'TwitchAutoReply_CommandReplyTemplate';
 
@@ -37,35 +39,51 @@ class selfReplyClass {
             message.split(' ').some((word) => word.startsWith('@') && myNames.includes(word.slice(1)))) {
             const name = formatUserName(tags);
             const timeStamp = formatTimestamp(tags['tmi-sent-ts']);
-            const logEl = document.getElementById('log');
-            addLog(logEl, `${timeStamp} ${name}：${message}`);
+            addLog(`${timeStamp} ${name}：${message}`);
         }
     }
 
     #handleSteamReply(tags, otherMessage) {
+        // 進入點偵測 customName / template 異常（chat-flow 單行警告）
+        const customName = document.getElementById('gameName').value;
+        const overrideMsg = getOverrideWarningText(customName);
+        if (overrideMsg) addLog('⚠ ' + overrideMsg);
+
+        const template = document.getElementById('commandReplyTemplate').value;
+        const templateMsg = getTemplateWarningText(template);
+        if (templateMsg) addLog('⚠ ' + templateMsg);
+
         this.#fetchFn('https://asia-east1-steamwebapi-394409.cloudfunctions.net/GetSteamStatus?steamid=' + encodeURIComponent(this.#steamId))
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error(`Steam API 回應錯誤: ${response.status}`);
+                    throw new Error(`Steam API 回應錯誤: ${response.status} ${response.statusText}`);
                 }
                 return response.json();
             })
             .then((json) => {
-                document.getElementById('currentSteamGameName').textContent = json['GameName'];
-                const currentGameName = document.getElementById('gameName').value || json['GameName'];
+                const gameName = json['GameName'] || '';
+                document.getElementById('currentSteamGameName').textContent = gameName;
+                const currentGameName = customName || gameName;
+                const name = formatUserName(tags);
+                const timeStamp = formatTimestamp(tags['tmi-sent-ts']);
 
                 if (shouldReply(currentGameName, this.#replyGameName)) {
                     const replyMessage = this.getMessage(currentGameName, otherMessage);
-                    const logEl = document.getElementById('log');
-                    this.#client.reply(this.#channel, replyMessage, tags);
-                    const name = formatUserName(tags);
-                    const timeStamp = formatTimestamp(tags['tmi-sent-ts']);
-                    addLog(logEl, `${timeStamp} ${name} !${this.commandName}，回覆：${replyMessage}`);
+                    // tmi.js client.reply 回傳 Promise，等實際送出 / 失敗才 log
+                    this.#client.reply(this.#channel, replyMessage, tags)
+                        .then(() => {
+                            addLog(`${timeStamp} ${name} !${this.commandName} → ✓ 已回覆：${replyMessage}`);
+                        })
+                        .catch((err) => {
+                            const hint = translateIrcError(err);
+                            addLog(`${timeStamp} ${name} !${this.commandName} → ✗ 送出失敗：${replyMessage}｜原因：${String(err)}${hint ? ' ' + hint : ''}`);
+                        });
+                } else {
+                    addLog(`${timeStamp} ${name} !${this.commandName} → ↪ 跳過（SE 上 reply 已含「${currentGameName}」）`);
                 }
             })
             .catch((err) => {
-                const logEl = document.getElementById('log');
-                addLog(logEl, `[錯誤] Steam API 請求失敗: ${err.message}`);
+                addLog(`✗ Steam API 請求失敗：${err.message}`);
             });
     }
 
@@ -103,7 +121,11 @@ class selfReplyClass {
             channels: [this.#channel]
         });
 
-        this.#client.connect().catch(console.error);
+        this.#client.connect()
+            .then(() => addLog('▶ 已連線到頻道：' + this.#channel))
+            .catch((err) => {
+                addLog('✗ Twitch IRC 連線失敗：' + String(err) + '（可能 token 過期，請登出再重新登入）');
+            });
 
         this.#client.on('message', (channel, tags, message, self) => {
             if (tags.username.toLowerCase() === 'streamelements' && message.includes('遊戲名稱')) {
@@ -128,6 +150,7 @@ class selfReplyClass {
     stop() {
         if (!this.#isEnable) return;
         this.#isEnable = false;
+        addLog('■ 停止自動回覆');
         this.#disconnect();
         document.getElementById('channel').disabled = false;
 
@@ -143,6 +166,7 @@ class selfReplyClass {
         if (this._invalid) return;
 
         document.getElementById(this.startButtonName).addEventListener('click', () => {
+            addLog('▶ 開始自動回覆');
             this.#connect();
 
             this.#isEnable = true;
